@@ -416,6 +416,86 @@ main {
   }
 }
 
+/* ---------- reaction stamps ---------- */
+.stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border: 1px solid rgba(42, 32, 23, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--ink);
+  font-family: var(--hand);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+  /* prevent stamp clicks from starting a node drag */
+  pointer-events: all;
+  transition: background 120ms ease, transform 100ms ease;
+}
+
+.stamp:hover {
+  background: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+.stamp:active {
+  transform: translateY(0);
+}
+
+/* count bubble */
+.stamp-n {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(42, 32, 23, 0.18);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 16px;
+}
+
+/* ---------- note aging ---------- */
+/* .age-fresh is the baseline — no extra rules needed */
+
+/* 1–6 days: the paper starts to yellow, ink fades very slightly */
+.sticky-note.age-days {
+  filter: sepia(0.18) brightness(0.97);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.25),
+    4px 8px 16px rgba(28, 18, 6, 0.42);
+}
+
+/* 1–4 weeks: noticeably aged — deeper sepia, faded ink, slightly curling shadow */
+.sticky-note.age-weeks {
+  filter: sepia(0.45) brightness(0.93) saturate(0.8);
+  color: rgba(42, 32, 23, 0.75);
+  box-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.22),
+    6px 12px 22px rgba(28, 18, 6, 0.48),
+    -1px 3px 8px rgba(28, 18, 6, 0.12); /* subtle curl on left edge */
+}
+
+/* 30+ days: well-worn evidence — heavy sepia, ink ghost, prominent curl */
+.sticky-note.age-old {
+  filter: sepia(0.75) brightness(0.89) saturate(0.6) contrast(0.92);
+  color: rgba(42, 32, 23, 0.55);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.2),
+    8px 14px 28px rgba(28, 18, 6, 0.52),
+    -2px 5px 12px rgba(28, 18, 6, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.04);
+}
+
 /* ---------- admin ---------- */
 .admin {
   max-width: 760px;
