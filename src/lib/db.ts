@@ -25,6 +25,7 @@ let ready: Promise<void> | null = null;
 export function ensureSchema(): Promise<void> {
   if (!ready) {
     ready = (async () => {
+      try {
       await sql`
         CREATE TABLE IF NOT EXISTS nodes (
           id BIGSERIAL PRIMARY KEY,
@@ -48,6 +49,16 @@ export function ensureSchema(): Promise<void> {
       `;
       await sql`CREATE INDEX IF NOT EXISTS nodes_status_idx ON nodes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS edges_status_idx ON edges(status)`;
+      } catch (err) {
+        // Concurrent instances can race CREATE ... IF NOT EXISTS at the catalog
+        // level (Postgres 23505 on the seq/index): if another instance won, the
+        // schema now exists — treat as success. Any other failure must NOT poison
+        // the cached promise, so clear it and rethrow so the next call retries.
+        if ((err as { code?: string })?.code !== "23505") {
+          ready = null;
+          throw err;
+        }
+      }
     })();
   }
   return ready;
