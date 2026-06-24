@@ -34,6 +34,7 @@ export function ensureSchema(): Promise<void> {
           x DOUBLE PRECISION NOT NULL,
           y DOUBLE PRECISION NOT NULL,
           status TEXT NOT NULL DEFAULT 'pending',
+          -- ponytail: vestigial after LLM cut; left nullable to avoid a migration.
           triage JSONB,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )

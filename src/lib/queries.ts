@@ -1,5 +1,4 @@
 import { sql, ensureSchema } from "@/lib/db";
-import type { Triage } from "@/lib/moderation";
 
 export type NoteRow = {
   id: number;
@@ -34,7 +33,7 @@ export async function getApprovedBoard(): Promise<{ notes: NoteRow[]; edges: Edg
   return { notes, edges };
 }
 
-export type PendingNote = NoteRow & { status: string; triage: Triage | null; created_at: string };
+export type PendingNote = NoteRow & { status: string; created_at: string };
 export type PendingEdge = EdgeRow & {
   created_at: string;
   source_body: string;
@@ -44,7 +43,7 @@ export type PendingEdge = EdgeRow & {
 export async function getQueue(): Promise<{ notes: PendingNote[]; edges: PendingEdge[] }> {
   await ensureSchema();
   const notes = (await sql`
-    SELECT id, topic, body, x, y, status, triage, created_at
+    SELECT id, topic, body, x, y, status, created_at
     FROM nodes WHERE status = 'pending' ORDER BY created_at
   `) as PendingNote[];
   const edges = (await sql`

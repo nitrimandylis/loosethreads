@@ -28,14 +28,8 @@ export function Queue({ notes, edges }: { notes: PendingNote[]; edges: PendingEd
           <div className="qrow" key={n.id}>
             <div className="qmeta">
               <span className="tag">{n.topic}</span>
-              {n.triage && (
-                <span className={`risk r${Math.min(9, n.triage.risk)}`}>
-                  risk {n.triage.risk} · {n.triage.categories.join(", ")}
-                </span>
-              )}
             </div>
             <p className="qbody">{n.body}</p>
-            {n.triage?.reason && <p className="qreason">🤖 {n.triage.reason}</p>}
             <div className="qactions">
               <button className="ok" disabled={busy === `node-${n.id}`} onClick={() => decide("node", n.id, "approve")}>
                 Approve
