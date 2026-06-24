@@ -5,17 +5,20 @@ import { z } from "zod";
 // NVIDIA NIM is OpenAI-compatible. Point at the hosted endpoint
 // (https://integrate.api.nvidia.com/v1, key from build.nvidia.com) or a
 // self-hosted NIM container by setting NVIDIA_NIM_BASE_URL.
+const BASE_URL = process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1";
+
 const nim = createOpenAICompatible({
   name: "nvidia-nim",
-  baseURL: process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1",
+  baseURL: BASE_URL,
   apiKey: process.env.NVIDIA_NIM_API_KEY,
 });
 
 // Pick a model that supports structured output. Override with MOD_MODEL.
 const MODEL = process.env.MOD_MODEL || "meta/llama-3.1-8b-instruct";
 
-// Enabled when we have a key (hosted) or a custom base URL (self-hosted NIM
-// that may not need a key).
+// Enabled only with a non-empty key (hosted) or a custom base URL (self-hosted
+// NIM that may not need a key). Note: an env var set to "" is falsy here, which
+// is exactly the "key entry exists but value is blank" failure mode.
 const enabled = !!(process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_NIM_BASE_URL);
 
 export type Triage = {
@@ -44,7 +47,12 @@ export async function triage(body: string): Promise<Triage> {
     categories: ["unscreened"],
     reason: "LLM triage unavailable; needs manual review.",
   };
-  if (!enabled) return fallback;
+  if (!enabled) {
+    console.warn(
+      "[moderation] NIM disabled — set a non-empty NVIDIA_NIM_API_KEY (or NVIDIA_NIM_BASE_URL for self-hosted). Routing submission to manual review."
+    );
+    return fallback;
+  }
 
   try {
     const { object } = await generateObject({
@@ -57,7 +65,10 @@ export async function triage(body: string): Promise<Triage> {
         body,
     });
     return object;
-  } catch {
+  } catch (err) {
+    // Don't swallow silently — a bad model id / auth / unsupported structured
+    // output otherwise looks identical to "all clear". Log, then fail safe.
+    console.error(`[moderation] NIM triage failed (model=${MODEL}, baseURL=${BASE_URL}); routing to manual review:`, err);
     return fallback;
   }
 }
