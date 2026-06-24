@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { sql, ensureSchema } from "@/lib/db";
 import { allow, clientIp } from "@/lib/ratelimit";
 import { verifyTurnstile } from "@/lib/turnstile";
-import { triage } from "@/lib/moderation";
 import { TOPIC_IDS, placeInTopic } from "@/lib/topics";
+import { isStamp } from "@/lib/reactions";
 
 const MAX_BODY = 500;
 
@@ -22,6 +22,21 @@ export async function POST(req: Request) {
   }
   const data = payload as Record<string, unknown>;
   const ip = clientIp(req);
+
+  // ---- Reaction (public, not moderated) ----
+  if (data.type === "reaction") {
+    const nodeId = Number(data.nodeId);
+    if (!Number.isInteger(nodeId) || !isStamp(data.kind)) {
+      return NextResponse.json({ error: "Invalid reaction" }, { status: 400 });
+    }
+    // ponytail: no per-user dedupe — friend-scale, a little spam is fine.
+    const ok = await sql`SELECT 1 FROM nodes WHERE id = ${nodeId} AND status = 'approved'`;
+    if (ok.length !== 1) {
+      return NextResponse.json({ error: "No such note" }, { status: 400 });
+    }
+    await sql`INSERT INTO reactions (node_id, kind) VALUES (${nodeId}, ${data.kind})`;
+    return NextResponse.json({ ok: true });
+  }
 
   // ---- Edge submission (connect two existing approved notes) ----
   if (data.type === "edge") {
@@ -59,14 +74,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bot check failed. Refresh and retry." }, { status: 403 });
   }
 
-  const t = await triage(body);
-  const status = t.decision === "reject" ? "rejected" : "pending";
   const { x, y } = placeInTopic(topic);
 
   await sql`
-    INSERT INTO nodes (topic, body, x, y, status, triage)
-    VALUES (${topic}, ${body}, ${x}, ${y}, ${status}, ${JSON.stringify(t)})
+    INSERT INTO nodes (topic, body, x, y, status)
+    VALUES (${topic}, ${body}, ${x}, ${y}, 'pending')
   `;
 
-  return NextResponse.json({ ok: true, status });
+  return NextResponse.json({ ok: true, status: "pending" });
 }
