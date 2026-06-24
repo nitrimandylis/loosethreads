@@ -6,6 +6,8 @@ export type NoteRow = {
   body: string;
   x: number;
   y: number;
+  created_at: string;
+  reactions: Record<string, number>;
 };
 
 export type EdgeRow = {
@@ -19,9 +21,21 @@ export async function getApprovedBoard(): Promise<{ notes: NoteRow[]; edges: Edg
   // canvas is viewable on first run. Real queries still surface their errors.
   if (!process.env.DATABASE_URL) return { notes: [], edges: [] };
   await ensureSchema();
-  const notes = (await sql`
-    SELECT id, topic, body, x, y FROM nodes WHERE status = 'approved' ORDER BY id
+  const rows = (await sql`
+    SELECT n.id, n.topic, n.body, n.x, n.y, n.created_at,
+           COALESCE(
+             jsonb_object_agg(r.kind, r.cnt) FILTER (WHERE r.kind IS NOT NULL),
+             '{}'::jsonb
+           ) AS reactions
+    FROM nodes n
+    LEFT JOIN (
+      SELECT node_id, kind, count(*)::int AS cnt FROM reactions GROUP BY node_id, kind
+    ) r ON r.node_id = n.id
+    WHERE n.status = 'approved'
+    GROUP BY n.id
+    ORDER BY n.id
   `) as NoteRow[];
+  const notes = rows;
   // Only show an edge when both endpoints are approved AND the edge is approved.
   const edges = (await sql`
     SELECT e.id, e.source_id, e.target_id

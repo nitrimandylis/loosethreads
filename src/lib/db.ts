@@ -48,6 +48,15 @@ export function ensureSchema(): Promise<void> {
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS reactions (
+          id BIGSERIAL PRIMARY KEY,
+          node_id BIGINT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS reactions_node_idx ON reactions(node_id)`;
       await sql`CREATE INDEX IF NOT EXISTS nodes_status_idx ON nodes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS edges_status_idx ON edges(status)`;
       } catch (err) {
