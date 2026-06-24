@@ -1,5 +1,13 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+
+// Constant-time string compare so neither the secret nor the cookie token leaks
+// length/contents through response timing.
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
 
 // ponytail: single-admin auth = compare a signed cookie to sha256(ADMIN_SECRET).
 // No user table, no auth provider — there is exactly one admin (you). Swap for a
@@ -13,7 +21,9 @@ function token(): string | null {
 }
 
 export function checkSecret(input: string): boolean {
-  return !!process.env.ADMIN_SECRET && input === process.env.ADMIN_SECRET;
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret || input.length < 8) return false;
+  return safeEqual(input, secret);
 }
 
 export async function setAdminCookie(): Promise<void> {
@@ -32,5 +42,5 @@ export async function isAdmin(): Promise<boolean> {
   const t = token();
   if (!t) return false;
   const c = (await cookies()).get(COOKIE)?.value;
-  return c === t;
+  return !!c && safeEqual(c, t);
 }
