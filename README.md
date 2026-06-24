@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+ ██╗      ██████╗  ██████╗ ███████╗███████╗
+ ██║     ██╔═══██╗██╔═══██╗██╔════╝██╔════╝
+ ██║     ██║   ██║██║   ██║███████╗█████╗
+ ██║     ██║   ██║██║   ██║╚════██║██╔══╝
+ ███████╗╚██████╔╝╚██████╔╝███████║███████╗
+ ╚══════╝ ╚═════╝  ╚═════╝ ╚══════╝╚══════╝
+ ████████╗██╗  ██╗██████╗ ███████╗ █████╗ ██████╗ ███████╗
+ ╚══██╔══╝██║  ██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝
+    ██║   ███████║██████╔╝█████╗  ███████║██║  ██║███████╗
+    ██║   ██╔══██║██╔══██╗██╔══╝  ██╔══██║██║  ██║╚════██║
+    ██║   ██║  ██║██║  ██║███████╗██║  ██║██████╔╝███████║
+    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝ ╚══════╝
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+<div align="center">
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### `PIN THE GOSSIP // CONNECT THE DOTS // TRUST NOBODY`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*an infinite corkboard for anonymous rumors, with red string and a paranoid moderation queue*
 
-## Learn More
+![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/everything-pre__moderated-c0231f?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
 
-To learn more about Next.js, take a look at the following resources:
+</div>
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🧵 What is this
 
-## Deploy on Vercel
+Loose Threads is a single infinite whiteboard where anyone, anonymously, pins a gossip note into a topic region and ties it to another note with red string — the conspiracy-corkboard you've seen in every detective movie, except the suspects are celebrities, your local scene, and whoever someone decided to implicate at 2am.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Nothing a stranger posts goes live the moment they post it. Every note and every connection lands in a hidden queue, gets a once-over from an LLM that flags the obviously-illegal and the obviously-defamatory, and then waits for a human (you) to approve or reject it. The public canvas only ever renders what survived that gauntlet. Anonymity for the crowd, accountability for the board.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+You can drag the notes around all you like. It won't save. Nobody else sees your tidying. The board is canonical and you are just a guest moving the furniture.
+
+```console
+nick@loosethreads:~$ npm run dev
+[✓] canvas mounted · 0 approved notes · 0 strings
+[i] the queue is empty. so is everyone's conscience.
+```
+
+## 🧷 The board
+
+| | feature | what it actually does |
+|---|---|---|
+| 01 | **infinite canvas** | what it actually is — pan/zoom/minimap corkboard via React Flow, notes pinned as sticky cards |
+| 02 | **red string** | drag from one note to another to claim they're connected — submitted, not drawn, until a human signs off |
+| 03 | **topic regions** | curated topics own spatial clusters; new notes auto-place near their region so the chaos stays loosely sorted |
+| 04 | **pre-moderation queue** | nothing is public until approved — the only posture that survives "anonymous + gossip + the open internet" |
+| 05 | **llm triage** | auto-rejects clear illegal/PII/slurs and tags the rest with a risk score; the human still makes every publish call |
+| 06 | **local-only drag** | rearrange the board to your heart's content — it never persists and nobody else ever sees it |
+| 07 | **no accounts** | no login, no profile, no email — just Turnstile + a per-IP rate limit standing between you and the queue |
+
+## 🚀 Run it
+
+You need a Neon Postgres `DATABASE_URL` and an `ADMIN_SECRET`. The rest (Upstash rate limit, Turnstile bot check, AI Gateway triage) are optional — leave them out and the app degrades gracefully, skipping that protection.
+
+```bash
+git clone https://github.com/nitrimandylis/loosethreads.git
+cd loosethreads
+cp .env.example .env.local   # paste DATABASE_URL + ADMIN_SECRET
+npm install
+npm run dev
+```
+
+The database schema creates itself on first query — no migration step, no ceremony. Visit `/` for the board and `/admin` to judge humanity.
+
+## 🔩 Under the hood
+
+```mermaid
+flowchart LR
+    A[anonymous visitor] -->|note or red string| B[Turnstile + rate limit]
+    B --> C[(queue · status=pending)]
+    C --> D[LLM triage]
+    D -->|clear violation| E[auto-reject]
+    D -->|everything else| F[/admin queue]
+    F -->|you approve| G[(status=approved)]
+    G --> H[public canvas]
+```
+
+| layer/file | path | job |
+|---|---|---|
+| canvas | `src/app/canvas.tsx` | React Flow board, add-note panel, drag-to-connect → edge submission |
+| sticky node | `src/app/sticky-node.tsx` | the pinned card + topic-region labels |
+| submit api | `src/app/api/submit/route.ts` | validates, rate-limits, Turnstile-checks, triages, queues notes + edges |
+| admin | `src/app/admin/` | secret-gated moderation queue with approve/reject |
+| db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`) |
+| queries | `src/lib/queries.ts` | approved-board read + pending-queue read |
+| moderation | `src/lib/moderation.ts` | LLM pre-screen via AI Gateway, fails safe to manual review |
+| topics | `src/lib/topics.ts` | the curated topic list and region coordinates |
+
+**Stack:** Next.js 16 · React 19 · React Flow · Neon Postgres · Upstash · Vercel AI Gateway · Cloudflare Turnstile · TypeScript
+
+---
+
+<div align="center">
+
+**[Nick Trimandylis](https://github.com/nitrimandylis)**
+
+`THE STRING CONNECTS EVERYTHING — THE QUEUE DECIDES WHAT YOU SEE`
+
+</div>
