@@ -1,5 +1,22 @@
 import { generateObject } from "ai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { z } from "zod";
+
+// NVIDIA NIM is OpenAI-compatible. Point at the hosted endpoint
+// (https://integrate.api.nvidia.com/v1, key from build.nvidia.com) or a
+// self-hosted NIM container by setting NVIDIA_NIM_BASE_URL.
+const nim = createOpenAICompatible({
+  name: "nvidia-nim",
+  baseURL: process.env.NVIDIA_NIM_BASE_URL || "https://integrate.api.nvidia.com/v1",
+  apiKey: process.env.NVIDIA_NIM_API_KEY,
+});
+
+// Pick a model that supports structured output. Override with MOD_MODEL.
+const MODEL = process.env.MOD_MODEL || "meta/llama-3.1-8b-instruct";
+
+// Enabled when we have a key (hosted) or a custom base URL (self-hosted NIM
+// that may not need a key).
+const enabled = !!(process.env.NVIDIA_NIM_API_KEY || process.env.NVIDIA_NIM_BASE_URL);
 
 export type Triage = {
   decision: "reject" | "review";
@@ -27,11 +44,11 @@ export async function triage(body: string): Promise<Triage> {
     categories: ["unscreened"],
     reason: "LLM triage unavailable; needs manual review.",
   };
-  if (!process.env.AI_GATEWAY_API_KEY) return fallback;
+  if (!enabled) return fallback;
 
   try {
     const { object } = await generateObject({
-      model: process.env.MOD_MODEL || "openai/gpt-4o-mini",
+      model: nim.chatModel(MODEL),
       schema,
       prompt:
         "You moderate an anonymous public gossip board. Flag the submission below. " +

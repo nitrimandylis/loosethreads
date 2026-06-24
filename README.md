@@ -53,7 +53,7 @@ nick@loosethreads:~$ npm run dev
 
 ## 🚀 Run it
 
-You need a Neon Postgres `DATABASE_URL` and an `ADMIN_SECRET`. The rest (Upstash rate limit, Turnstile bot check, AI Gateway triage) are optional — leave them out and the app degrades gracefully, skipping that protection.
+You need a Neon Postgres `DATABASE_URL` and an `ADMIN_SECRET`. The rest (Upstash rate limit, Turnstile bot check, NVIDIA NIM triage) are optional — leave them out and the app degrades gracefully, skipping that protection.
 
 ```bash
 git clone https://github.com/nitrimandylis/loosethreads.git
@@ -86,10 +86,10 @@ flowchart LR
 | admin | `src/app/admin/` | secret-gated moderation queue with approve/reject |
 | db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`) |
 | queries | `src/lib/queries.ts` | approved-board read + pending-queue read |
-| moderation | `src/lib/moderation.ts` | LLM pre-screen via AI Gateway, fails safe to manual review |
+| moderation | `src/lib/moderation.ts` | LLM pre-screen via NVIDIA NIM, fails safe to manual review |
 | topics | `src/lib/topics.ts` | the curated topic list and region coordinates |
 
-**Stack:** Next.js 16 · React 19 · React Flow · Neon Postgres · Upstash · Vercel AI Gateway · Cloudflare Turnstile · TypeScript
+**Stack:** Next.js 16 · React 19 · React Flow · Neon Postgres · Upstash · NVIDIA NIM · Cloudflare Turnstile · TypeScript
 
 ---
 
