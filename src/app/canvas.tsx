@@ -37,7 +37,7 @@ export default function Canvas({ notes, edges }: { notes: NoteRow[]; edges: Edge
       id: String(n.id),
       type: "sticky",
       position: { x: n.x, y: n.y },
-      data: { body: n.body },
+      data: { id: n.id, body: n.body, createdAt: n.created_at, reactions: n.reactions },
     }));
     return [...topicNodes, ...noteNodes];
   }, [notes]);
