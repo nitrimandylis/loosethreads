@@ -1,9 +1,43 @@
 @import "tailwindcss";
 
+/* =====================================================================
+   LOOSE THREADS — corkboard / case-file design system
+   ---------------------------------------------------------------------
+   Direction: a detective's evidence wall under a desk lamp. Real cork,
+   index cards pinned with brass tacks, red yarn between suspects.
+   Everything quiet except the signature: the pin + the string.
+
+   PALETTE
+     cork-base   #7d5e3c   warm cork tile
+     cork-hi     #99764a   sun-lit grain
+     cork-grout  #5c4326   seams / shadow between tiles
+     vignette    #2a1d10   lamp falloff at the edges
+     paper-manila #f1e4c3  index card
+     paper-legal  #fdf6c9  yellow legal pad
+     paper-cool   #ebefe6  cool memo slip
+     ink          #2a2017  pencil/pen on paper
+     red-string   #c0231f  evidence yarn (matches RED in canvas.tsx)
+     brass        #c9a23a  pushpin shaft highlight
+
+   TYPE  (system-safe stacks only — NO Comic Sans fallback)
+     display/util : "Courier New", ui-monospace, monospace  (typed case file)
+     hand (notes) : "Bradley Hand", "Segoe Print", "Marker Felt", cursive
+   ===================================================================== */
+
 :root {
-  --cork: #5a4632;
-  --cork-2: #6b5440;
+  --cork: #7d5e3c;
+  --cork-hi: #99764a;
+  --cork-grout: #5c4326;
+  --vignette: #2a1d10;
   --ink: #2a2017;
+  --red-string: #c0231f;
+  --brass: #c9a23a;
+  --panel: #211a11;
+  --panel-edge: #4a3a28;
+  --paper-shadow: rgba(28, 18, 6, 0.45);
+
+  --hand: "Bradley Hand", "Segoe Print", "Marker Felt", cursive;
+  --type: "Courier New", ui-monospace, monospace;
 }
 
 * {
@@ -16,7 +50,7 @@ body {
   height: 100%;
   font-family: ui-sans-serif, system-ui, Arial, sans-serif;
   color: #f2e9da;
-  background: #2a2017;
+  background: var(--vignette);
 }
 
 main {
@@ -34,22 +68,26 @@ main {
   display: flex;
   align-items: baseline;
   gap: 14px;
-  padding: 12px 18px;
+  padding: 16px 22px;
   pointer-events: none;
 }
 .topbar h1 {
   margin: 0;
-  font-family: "Courier New", monospace;
-  font-size: 22px;
-  letter-spacing: 2px;
+  font-family: var(--type);
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: 3px;
   text-transform: uppercase;
   color: #f7efe0;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  /* faint stamped/embossed look against the cork */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18), 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 .topbar span {
   font-size: 12px;
-  color: #d8c9ad;
+  letter-spacing: 0.5px;
+  color: #e6d6b6;
   font-style: italic;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 /* ---------- canvas ---------- */
@@ -58,67 +96,157 @@ main {
   position: relative;
 }
 .react-flow {
-  /* corkboard */
+  /* Layered cork: fine grain flecks (two offset dot grids at different scales),
+     a soft woven weave, and a warm base. The desk-lamp vignette is a separate
+     fixed overlay (.canvas-root::after) so it stays put while the board pans. */
   background-color: var(--cork);
-  background-image: radial-gradient(var(--cork-2) 1px, transparent 1px),
-    radial-gradient(var(--cork-2) 1px, transparent 1px);
-  background-size: 22px 22px;
-  background-position: 0 0, 11px 11px;
+  background-image:
+    radial-gradient(var(--cork-grout) 0.9px, transparent 1.1px),
+    radial-gradient(rgba(153, 118, 74, 0.55) 0.7px, transparent 1px),
+    radial-gradient(rgba(60, 42, 24, 0.5) 0.6px, transparent 0.9px),
+    linear-gradient(125deg, var(--cork-hi), var(--cork) 55%, #6f5234);
+  background-size: 19px 19px, 13px 13px, 27px 27px, 100% 100%;
+  background-position: 0 0, 7px 11px, 14px 5px, 0 0;
 }
 
-/* ---------- sticky note ---------- */
+/* desk-lamp vignette — warm centre, smoke-dark edges. Fixed over the board. */
+.canvas-root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background:
+    radial-gradient(
+      130% 110% at 50% 38%,
+      rgba(255, 236, 200, 0.1) 0%,
+      rgba(42, 29, 16, 0) 42%,
+      rgba(42, 29, 16, 0.42) 82%,
+      rgba(28, 18, 8, 0.62) 100%
+    );
+}
+
+/* ---------- pinned paper note ---------- */
 .sticky-note {
+  --tilt: -1.4deg;
   position: relative;
   width: 200px;
   min-height: 120px;
-  padding: 18px 16px 14px;
-  background: #fdf6c9;
+  padding: 20px 16px 16px;
+  background-color: #fdf6c9;
+  /* paper: faint top-light sheen + a couple of subtle fibre mottles */
+  background-image:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.55), rgba(0, 0, 0, 0.04) 70%),
+    radial-gradient(120% 80% at 80% 110%, rgba(120, 96, 40, 0.1), transparent 60%);
   color: var(--ink);
-  font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
+  font-family: var(--hand);
   font-size: 15px;
-  line-height: 1.35;
-  box-shadow: 3px 5px 10px rgba(0, 0, 0, 0.45);
-  transform: rotate(-1.2deg);
+  line-height: 1.4;
+  /* contact shadow (tight, dark) + cast shadow (soft, offset) reads as lifted paper */
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.28),
+    4px 7px 14px var(--paper-shadow);
+  transform: rotate(var(--tilt));
   border-radius: 2px;
+  /* hairline so paper edge catches the lamp */
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  will-change: transform;
 }
-.sticky-note:nth-of-type(even) {
-  transform: rotate(1.4deg);
-  background: #fff3b0;
+/* alternate paper stocks + tilts so the wall looks hand-assembled, not gridded */
+.sticky-note:nth-of-type(3n + 1) {
+  --tilt: 1.6deg;
+  background-color: #f1e4c3; /* manila */
+}
+.sticky-note:nth-of-type(3n + 2) {
+  --tilt: -2.1deg;
+  background-color: #ebefe6; /* cool memo */
+}
+.sticky-note:nth-of-type(4n) {
+  --tilt: 1deg;
+  background-color: #fff3b0; /* bright legal */
+}
+/* lift toward the lamp on hover: straighten, rise, deepen the cast shadow */
+.sticky-note:hover {
+  transform: rotate(calc(var(--tilt) * 0.3)) translateY(-4px) scale(1.03);
+  box-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.3),
+    10px 16px 28px rgba(20, 12, 4, 0.5);
+  z-index: 10;
 }
 .sticky-note p {
   margin: 0;
   word-break: break-word;
 }
+
+/* ---------- brass pushpin (the signature) ---------- */
 .sticky-note .pin {
   position: absolute;
-  top: -8px;
+  top: -9px;
   left: 50%;
   transform: translateX(-50%);
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ff6b63, #b81a14);
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+  /* domed vermilion head with a brass shaft catching light top-left */
+  background:
+    radial-gradient(circle at 35% 28%, #ff8b7e 0%, #e23b30 38%, #9c130c 100%);
+  box-shadow:
+    inset -1px -1px 2px rgba(0, 0, 0, 0.4),
+    inset 1px 1px 2px rgba(255, 255, 255, 0.5),
+    0 1px 0 var(--brass),
+    /* cast pin shadow falls down onto the paper */
+    1px 4px 5px rgba(0, 0, 0, 0.45);
 }
+/* tiny specular highlight on the dome */
+.sticky-note .pin::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  width: 4px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  filter: blur(0.3px);
+}
+
 .rf-handle {
-  width: 8px;
-  height: 8px;
-  background: #b81a14;
-  border: none;
+  width: 9px;
+  height: 9px;
+  background: var(--red-string);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   opacity: 0;
+  transition: opacity 140ms ease;
 }
 .sticky-note:hover .rf-handle {
-  opacity: 0.7;
+  opacity: 0.8;
+}
+
+/* ---------- red string (evidence yarn) ---------- */
+.react-flow__edge-path {
+  /* slightly translucent + dropped shadow so the yarn lifts off the cork
+     and reads as physical, casting onto the board below it */
+  stroke-linecap: round;
+  opacity: 0.92;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+}
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  opacity: 1;
 }
 
 /* ---------- topic region labels ---------- */
 .topic-label {
-  font-family: "Courier New", monospace;
+  font-family: var(--type);
   font-size: 40px;
   font-weight: 700;
-  letter-spacing: 4px;
+  letter-spacing: 6px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.12);
+  /* stencilled into the cork: a dark engraved fill lifted by a 1px hi-light below */
+  color: rgba(38, 24, 10, 0.32);
+  text-shadow: 0 1px 0 rgba(255, 247, 230, 0.1);
   white-space: nowrap;
   user-select: none;
 }
@@ -130,29 +258,46 @@ main {
 }
 .add-btn {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  right: 20px;
+  bottom: 20px;
   z-index: 15;
-  padding: 12px 18px;
-  border: none;
+  padding: 12px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
   border-radius: 999px;
-  background: #b81a14;
+  background: radial-gradient(circle at 30% 25%, #d8332b, var(--red-string) 65%, #921009);
   color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  font-family: var(--type);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.5);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+.add-btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 9px 22px rgba(0, 0, 0, 0.55);
+}
+.add-btn:active {
+  transform: translateY(0);
 }
 .add-panel {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  right: 20px;
+  bottom: 20px;
   z-index: 15;
-  width: 300px;
+  width: 308px;
   padding: 16px;
-  background: #1f1810;
-  border: 1px solid #4a3a28;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 14px 36px rgba(0, 0, 0, 0.65);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -161,6 +306,13 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+.add-head strong {
+  font-family: var(--type);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #f2e9da;
 }
 .add-head button {
   background: none;
@@ -175,10 +327,17 @@ main {
   resize: none;
   padding: 8px;
   border-radius: 6px;
-  border: 1px solid #4a3a28;
+  border: 1px solid var(--panel-edge);
   background: #2a2017;
   color: #f2e9da;
   font-size: 14px;
+  font-family: inherit;
+}
+.add-panel textarea:focus,
+.add-panel select:focus {
+  outline: none;
+  border-color: var(--red-string);
+  box-shadow: 0 0 0 2px rgba(192, 35, 31, 0.3);
 }
 .add-panel .count {
   font-size: 11px;
@@ -201,12 +360,20 @@ main {
   color: #f2e9da;
 }
 .submit-btn {
-  padding: 10px;
-  border: none;
+  padding: 11px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
   border-radius: 6px;
-  background: #b81a14;
+  background: linear-gradient(180deg, #d8332b, var(--red-string) 60%, #9c130c);
   color: #fff;
-  font-weight: 600;
+  font-family: var(--type);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: filter 140ms ease;
+}
+.submit-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 .submit-btn:disabled {
   opacity: 0.5;
@@ -221,17 +388,32 @@ main {
 /* ---------- toast ---------- */
 .toast {
   position: absolute;
-  bottom: 80px;
+  bottom: 84px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
-  padding: 10px 16px;
-  background: #1f1810;
-  border: 1px solid #4a3a28;
+  padding: 11px 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-left: 3px solid var(--red-string);
   border-radius: 8px;
   color: #f2e9da;
   font-size: 13px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- quality floor: respect reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .sticky-note,
+  .rf-handle,
+  .add-btn,
+  .submit-btn {
+    transition: none;
+  }
+  .sticky-note:hover {
+    /* still lift the shadow for affordance, but don't move */
+    transform: rotate(var(--tilt));
+  }
 }
 
 /* ---------- admin ---------- */

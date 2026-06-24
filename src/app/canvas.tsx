@@ -48,7 +48,7 @@ export default function Canvas({ notes, edges }: { notes: NoteRow[]; edges: Edge
         id: String(e.id),
         source: String(e.source_id),
         target: String(e.target_id),
-        style: { stroke: RED, strokeWidth: 2 },
+        style: { stroke: RED, strokeWidth: 3 },
         animated: false,
       })),
     [edges]
@@ -71,7 +71,7 @@ export default function Canvas({ notes, edges }: { notes: NoteRow[]; edges: Edge
           id: `pending-${c.source}-${c.target}-${Date.now()}`,
           source: c.source!,
           target: c.target!,
-          style: { stroke: RED, strokeWidth: 2, strokeDasharray: "6 4", opacity: 0.6 },
+          style: { stroke: RED, strokeWidth: 3, strokeDasharray: "6 4", opacity: 0.6 },
         },
       ]);
       const res = await fetch("/api/submit", {
