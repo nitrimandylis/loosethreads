@@ -17,6 +17,8 @@ import {
   shotFrame,
   frameVisible,
   fitScale,
+  clampScale,
+  anchorScroll,
   FURNITURE,
 } from "@/lib/wall";
 import { mountTurnstile, getToken } from "@/lib/turnstile-client";
@@ -131,6 +133,27 @@ export default function Board({ notes: served, edges: servedEdges }: {
     sur.style.setProperty("--inv", String(1 / s));
     el.scrollLeft = (focus.x - b.x) * s - el.clientWidth / 2;
     el.scrollTop = (focus.y - b.y) * s - el.clientHeight / 2;
+  }, []);
+
+  /** Rescale in place, keeping the board point under (px, py) fixed. px and
+      py are offsets inside the scroller's box. Per-frame this only touches
+      refs and styles, like view() does; the caller sets state at gesture
+      end so React is not re-rendering sixty times a second. */
+  const rescale = useCallback((to: number, px: number, py: number) => {
+    const el = scroller.current;
+    const box = sizer.current;
+    const sur = surface.current;
+    if (!el || !box || !sur) return;
+    const from = scaleRef.current;
+    if (to === from) return;
+    const b = boundsRef.current;
+    box.style.width = `${b.w * to}px`;
+    box.style.height = `${b.h * to}px`;
+    sur.style.transform = `scale(${to})`;
+    sur.style.setProperty("--inv", String(1 / to));
+    el.scrollLeft = anchorScroll(el.scrollLeft, px, from, to);
+    el.scrollTop = anchorScroll(el.scrollTop, py, from, to);
+    scaleRef.current = to;
   }, []);
 
   const centreOfView = useCallback(() => {
@@ -251,6 +274,96 @@ export default function Board({ notes: served, edges: servedEdges }: {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Free zoom between the survey scale and 1:1. Ctrl+wheel is also what a
+  // trackpad pinch arrives as in Chrome and Firefox; Safari sends gesture
+  // events; a phone sends two touches. The step-back button still exists for
+  // the named two-step framing. Native listeners, because React registers
+  // wheel and touch handlers as passive and preventDefault would be ignored.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+
+    const survey = () =>
+      steppedBackScale(boundsRef.current, el.clientWidth, el.clientHeight);
+    const settle = () => {
+      setScale(scaleRef.current);
+      // Keep the step button's label honest after a manual zoom-out.
+      setWide(scaleRef.current <= survey() * 1.05);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return; // plain wheel keeps scrolling
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      const to = clampScale(scaleRef.current * Math.exp(-e.deltaY * 0.01), survey());
+      rescale(to, e.clientX - r.left, e.clientY - r.top);
+      settle();
+    };
+
+    // Safari's trackpad pinch. e.scale is cumulative from gesture start.
+    let gestureStart = 1;
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      gestureStart = scaleRef.current;
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const g = e as Event & { scale: number; clientX: number; clientY: number };
+      const r = el.getBoundingClientRect();
+      const to = clampScale(gestureStart * g.scale, survey());
+      rescale(to, g.clientX - r.left, g.clientY - r.top);
+    };
+
+    // Two fingers on a phone. Distance ratio drives the scale; the midpoint
+    // is the anchor. preventDefault so the browser neither scrolls nor zooms
+    // the page while the pinch is live.
+    let pinch: { d: number; s: number } | null = null;
+    const touchInfo = (e: TouchEvent) => {
+      const a = e.touches[0];
+      const b = e.touches[1];
+      const r = el.getBoundingClientRect();
+      return {
+        d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+        x: (a.clientX + b.clientX) / 2 - r.left,
+        y: (a.clientY + b.clientY) / 2 - r.top,
+      };
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      pinch = { d: touchInfo(e).d, s: scaleRef.current };
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault();
+      const t = touchInfo(e);
+      rescale(clampScale((pinch.s * t.d) / pinch.d, survey()), t.x, t.y);
+    };
+    const onTouchEnd = () => {
+      if (!pinch) return;
+      pinch = null;
+      settle();
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("gesturestart", onGestureStart);
+    el.addEventListener("gesturechange", onGestureChange);
+    el.addEventListener("gestureend", settle);
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("gesturestart", onGestureStart);
+      el.removeEventListener("gesturechange", onGestureChange);
+      el.removeEventListener("gestureend", settle);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [rescale]);
 
   /** Your own note travelling from the sheet you wrote it on to the wall. */
   useEffect(() => {
