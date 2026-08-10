@@ -12,7 +12,13 @@ import {
   rememberStamp,
   forgetStamp,
 } from "@/lib/stamped";
-import { rememberStampProof, noteSecret, forgetNote } from "@/lib/mine";
+import {
+  rememberStampProof,
+  stampProof,
+  forgetStampProof,
+  noteSecret,
+  forgetNote,
+} from "@/lib/mine";
 import { MAX_BODY } from "@/lib/limits";
 import type { NoteRow } from "@/lib/queries";
 
@@ -95,6 +101,30 @@ export function Note({
     }
     // The proof is what lets this browser take the stamp back later.
     rememberStampProof(note.id, kind, data.id, data.secret);
+  }
+
+  // The mirror of react(): take a stamp of yours back off the note.
+  async function unreact(kind: string) {
+    const proof = stampProof(note.id, kind);
+    if (!proof) return;
+    setCounts((c) => ({ ...c, [kind]: Math.max(0, (c[kind] ?? 1) - 1) })); // optimistic
+    forgetStamp(note.id, kind);
+
+    const ok = await fetch("/api/manage", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "unstamp", id: proof.id, secret: proof.secret }),
+    })
+      .then((r) => r.ok)
+      .catch(() => false);
+
+    if (ok) {
+      forgetStampProof(note.id, kind);
+    } else {
+      // The stamp is still on the server; put it back on the note.
+      setCounts((c) => ({ ...c, [kind]: (c[kind] ?? 0) + 1 }));
+      rememberStamp(note.id, kind);
+    }
   }
 
   const classes = [
@@ -187,17 +217,28 @@ export function Note({
 
       {selected && !tying && !editing && (
         <div className="tray" onClick={(e) => e.stopPropagation()}>
-          {STAMPS.map((s) => (
-            <button
-              key={s}
-              className={`tray-stamp${mine(s) ? " used" : ""}`}
-              disabled={mine(s)}
-              onClick={() => react(s)}
-              aria-label={mine(s) ? `${s}, already stamped by you` : `Stamp ${s}`}
-            >
-              {s}
-            </button>
-          ))}
+          {STAMPS.map((s) => {
+            const yours = mine(s);
+            // Stamped before proofs existed: still locked, like it always was.
+            const reversible = yours && stampProof(note.id, s) !== null;
+            return (
+              <button
+                key={s}
+                className={`tray-stamp${yours ? " used" : ""}`}
+                disabled={yours && !reversible}
+                onClick={() => (yours ? unreact(s) : react(s))}
+                aria-label={
+                  yours
+                    ? reversible
+                      ? `${s}, stamped by you. Take it back`
+                      : `${s}, already stamped by you`
+                    : `Stamp ${s}`
+                }
+              >
+                {s}
+              </button>
+            );
+          })}
           <button className="tray-tie" onClick={() => onTie(note.id)}>
             Tie string
           </button>
