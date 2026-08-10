@@ -10,7 +10,7 @@ A friend group first, then whoever they forward the link to. Most arrive from a 
 
 Two roles:
 
-- **Visitors** (everyone): read the board, pin a rumour, tie red string between two notes, stamp a note. Everything they submit is public immediately.
+- **Visitors** (everyone): read the board, pin a rumour, tie red string between two notes, stamp a note. Everything they submit is public immediately. What they created from this browser stays theirs to manage: take a note down, reword it, untie a string, take a stamp back. Anyone can also drag any note around their own view of the wall; nobody else sees that.
 - **The moderator** (Nick, one person, `ADMIN_SECRET`): can edit or remove anything that is already on the board. Nothing waits for him.
 
 ## Product Purpose
@@ -32,12 +32,19 @@ What replaces it:
 - **Takedown, not review.** `/admin` lists what is live, newest first, and can edit a note in place or remove it. Removal is soft (`status='removed'`) and the public read already filters on `approved`, so a removed note and its strings disappear together.
 - **The gate is the only guard.** A per-IP rate limit and a Cloudflare Turnstile check are now the entire defence. Both used to fail open when unconfigured, which was safe when a human queue backstopped them. In production they now **fail closed**: if the gate is not configured, submissions are refused. If the environment is wrong, nobody can post, rather than anybody being able to post anything at any rate.
 
+### Yours to manage
+
+Everything a browser creates comes back with a secret (one random UUID per row) that only that browser is ever told. It is kept in localStorage and repeated to `/api/manage` to take a note down, reword it, untie a string, or take a stamp back. No accounts, no sessions, nothing that identifies a person, and nothing marks a note as yours to anyone else. Clear your browser data and your notes become as permanent as everyone else's; that is the deal.
+
+Rearranging is different: dragging a note (mouse: drag it; touch: hold to lift) moves it only in your own view, kept in sessionStorage so a closed tab straightens the wall back out. The shared wall never learns about it.
+
 ### Accepted tradeoffs
 
 Written down because they were chosen, not overlooked:
 
 - **Nothing surfaces problems.** There is no report button and no notification. The moderator finds out that something needs removing when a person tells him. The board carries a link to the repo so a stranger has somewhere to go.
-- **No record is kept.** Editing overwrites what the person originally wrote, and there is no audit of what was edited or removed. The board is what it is right now.
+- **No record is kept.** Editing overwrites what the person originally wrote, and there is no audit of what was edited or removed. The board is what it is right now. Owner rewords are the same: no history.
+- **A removed string can be re-tied.** Untying works by letting a re-tie revive the pair, which also means a string the moderator removed comes back if any visitor ties the same two notes again. Removed notes are not affected; they refuse new strings entirely.
 - **Nothing is automatic.** No cron, no expiry, no auto-approval, no filtering. The board only changes when a person does something to it.
 
 ## Brand Personality
