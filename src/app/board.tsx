@@ -88,6 +88,8 @@ export default function Board({ notes: served, edges: servedEdges }: {
   const scaleRef = useRef(scale);
   const painted = useRef(false);
   const landed = useRef<number | null>(null);
+  // Where the visitor was reading when they pinned, to go back to afterwards.
+  const returnTo = useRef<{ s: number; focus: { x: number; y: number } } | null>(null);
 
   useEffect(() => {
     boundsRef.current = bounds;
@@ -258,6 +260,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
     view(scaleRef.current, { x: note.x + 100, y: note.y + 70 });
     const el = document.querySelector<HTMLElement>(`[data-note-id="${note.id}"]`);
+    // Under reduced motion the note does not travel, and neither does the
+    // view afterwards: a silent teleport back would disorient more than
+    // staying put, so the visitor keeps the viewport from here.
     if (!el || reduced()) return;
 
     const box = el.getBoundingClientRect();
@@ -274,7 +279,47 @@ export default function Board({ notes: served, edges: servedEdges }: {
         el.style.transform = "";
       },
     });
-  }, [landing, view]);
+
+    // Let the landing be seen, then take them back to where they were
+    // reading. Touching the board in the meantime keeps the viewport.
+    const saved = returnTo.current;
+    returnTo.current = null;
+    if (!saved) return;
+
+    let cancelled = false;
+    const cancel = () => (cancelled = true);
+    const sc = scroller.current;
+    sc?.addEventListener("pointerdown", cancel, { once: true, passive: true });
+
+    const timer = setTimeout(() => {
+      if (cancelled || !sc) return;
+      const here = centreOfView();
+      const proxy = { s: scaleRef.current, x: here.x, y: here.y };
+      animate(proxy, {
+        s: saved.s,
+        x: saved.focus.x,
+        y: saved.focus.y,
+        duration: 700,
+        ease: "inOutQuint",
+        onUpdate: () => {
+          if (cancelled) return;
+          scaleRef.current = proxy.s;
+          view(proxy.s, { x: proxy.x, y: proxy.y });
+        },
+        onComplete: () => {
+          if (cancelled) return;
+          scaleRef.current = saved.s;
+          setScale(saved.s);
+          requestAnimationFrame(() => view(saved.s, saved.focus));
+        },
+      });
+    }, 760 + 600); // after the landing animation plus a beat
+
+    return () => {
+      clearTimeout(timer);
+      sc?.removeEventListener("pointerdown", cancel);
+    };
+  }, [landing, view, centreOfView]);
 
   const tie = useCallback(
     async (a: number, b: number) => {
@@ -535,6 +580,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
       <Compose
         onPinned={(note, from) => {
+          returnTo.current = { s: scaleRef.current, focus: centreOfView() };
           setAddedNotes((ns) => [...ns, note]);
           setLanding({ note, from });
           say("Pinned. It is on the wall.");
