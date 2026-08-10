@@ -118,12 +118,17 @@ export async function POST(req: Request) {
   `) as Point[];
   const { x, y } = placeInTopic(topic, neighbours);
 
-  await sql`
+  // Hand the row back. It is public the instant this returns, so the board
+  // pins it straight away rather than making the person who wrote it reload to
+  // find out whether it worked. It needs the real id and the real coordinates:
+  // a guessed position would move under them on the next load.
+  const [note] = (await sql`
     INSERT INTO nodes (topic, body, x, y, status)
     VALUES (${topic}, ${body}, ${x}, ${y}, 'approved')
-  `;
+    RETURNING id, topic, body, x, y, created_at
+  `) as { id: number }[];
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, note: { ...note, reactions: {} } });
 }
 
 function tooMany() {

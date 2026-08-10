@@ -61,7 +61,7 @@ export function Board({ notes, edges }: { notes: LiveNote[]; edges: LiveEdge[] }
             const tooLong = (draft ?? n.body).trim().length > MAX_BODY;
             return (
               <div className="qrow" key={n.id}>
-                <div className="sticky-note sticky-preview stock-1">
+                <div className="note note-preview stock-1">
                   {/* same paper layer the public note uses, so the preview is honest */}
                   <div className="paper" aria-hidden="true" />
                   <div className="pin" />

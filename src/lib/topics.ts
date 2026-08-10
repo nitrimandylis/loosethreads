@@ -1,6 +1,6 @@
 // ponytail: curated topics as a const, not a DB table. Promote to a table when
-// you want to manage them from the UI. Each topic owns a region center on the
-// infinite canvas; new notes are auto-placed near their topic's center.
+// you want to manage them from the UI. Each topic owns a patch of one wall;
+// new notes are auto-placed inside their topic's patch.
 export type Topic = {
   id: string;
   label: string;
@@ -8,13 +8,20 @@ export type Topic = {
   cy: number;
 };
 
+/**
+ * Zone centres, in board px. These used to sit 1600 apart, which meant that at
+ * any zoom where a note was readable the rest of the screen was empty cork:
+ * six islands with a void between them, not a wall. They now sit shoulder to
+ * shoulder, close enough that the whole thing reads as one board and notes
+ * from neighbouring topics crowd each other at the seams.
+ */
 export const TOPICS: Topic[] = [
+  { id: "politics", label: "Politics", cx: -620, cy: 0 },
   { id: "celebrities", label: "Celebrities", cx: 0, cy: 0 },
-  { id: "tech", label: "Tech", cx: 1600, cy: 0 },
-  { id: "politics", label: "Politics", cx: -1600, cy: 0 },
-  { id: "local", label: "Local", cx: 0, cy: 1200 },
-  { id: "sports", label: "Sports", cx: 1600, cy: 1200 },
-  { id: "music", label: "Music", cx: -1600, cy: 1200 },
+  { id: "tech", label: "Tech", cx: 620, cy: 0 },
+  { id: "music", label: "Music", cx: -620, cy: 520 },
+  { id: "local", label: "Local", cx: 0, cy: 520 },
+  { id: "sports", label: "Sports", cx: 620, cy: 520 },
 ];
 
 export const TOPIC_IDS = new Set(TOPICS.map((t) => t.id));
@@ -25,14 +32,14 @@ export function topicById(id: string): Topic | undefined {
 
 export type Point = { x: number; y: number };
 
-const SPREAD = 550; // half-width of a topic's region, in board px
+export const SPREAD = 235; // half-width of a topic's patch, in board px
 const CANDIDATES = 20;
 
 /**
- * Pick a spot for a new note inside its topic region.
+ * Pick a spot for a new note inside its topic patch.
  *
- * Purely random placement buries notes: the region is 1100x1100 and a note is
- * about 210x150, so collisions start showing up around 8 notes in one topic.
+ * Purely random placement buries notes: the patch is 470x470 and a note is
+ * about 200x150, so collisions start showing up within a handful of notes.
  * Nobody reviews placement before a note lands any more, and x,y is never
  * editable afterwards, so the board has to get this right on the first try.
  *

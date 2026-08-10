@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { placeInTopic, topicById, type Point } from "./topics.ts";
+import { placeInTopic, topicById, SPREAD, type Point } from "./topics.ts";
 
 const minGap = (p: Point, existing: Point[]) =>
   Math.min(...existing.map((e) => Math.hypot(p.x - e.x, p.y - e.y)));
@@ -14,12 +14,12 @@ function seeded(seed: number) {
   };
 }
 
-test("places inside the topic's region", () => {
+test("places inside the topic's patch", () => {
   const t = topicById("tech")!;
   for (let i = 0; i < 50; i++) {
     const p = placeInTopic("tech", [], seeded(i));
-    assert.ok(Math.abs(p.x - t.cx) <= 550, `x ${p.x} outside region`);
-    assert.ok(Math.abs(p.y - t.cy) <= 550, `y ${p.y} outside region`);
+    assert.ok(Math.abs(p.x - t.cx) <= SPREAD, `x ${p.x} outside the patch`);
+    assert.ok(Math.abs(p.y - t.cy) <= SPREAD, `y ${p.y} outside the patch`);
   }
 });
 
@@ -32,18 +32,24 @@ test("keeps its distance from notes already on the board", () => {
   const naive: number[] = [];
   const r2 = seeded(7);
   for (let i = 0; i < 200; i++) {
-    naive.push(minGap({ x: Math.round((r2() * 2 - 1) * 550), y: Math.round((r2() * 2 - 1) * 550) }, existing));
+    naive.push(
+      minGap(
+        { x: Math.round((r2() * 2 - 1) * SPREAD), y: Math.round((r2() * 2 - 1) * SPREAD) },
+        existing
+      )
+    );
   }
   const average = naive.reduce((a, b) => a + b, 0) / naive.length;
   assert.ok(minGap(chosen, existing) > average, "picked spot is no better than random");
 });
 
 test("never lands squarely on top of an existing note", () => {
-  // A note is about 210x150, so anything under ~120px apart is a burial.
+  // A note is about 200x150. Corners are meant to overlap on a packed wall;
+  // what must never happen is one note landing squarely on another.
   const existing: Point[] = [];
   for (let i = 0; i < 12; i++) {
     const p = placeInTopic("local", existing, seeded(i * 31 + 5));
-    if (existing.length) assert.ok(minGap(p, existing) > 120, `note ${i} buried at gap ${minGap(p, existing)}`);
+    if (existing.length) assert.ok(minGap(p, existing) > 80, `note ${i} buried at gap ${minGap(p, existing)}`);
     existing.push(p);
   }
 });

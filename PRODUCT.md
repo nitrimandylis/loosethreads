@@ -15,7 +15,7 @@ Two roles:
 
 ## Product Purpose
 
-A single infinite corkboard for anonymous gossip, pinned into topic regions and connected with red string. It exists because the conspiracy-wall bit is funny when the conspiracy is who fancies who.
+One corkboard for anonymous gossip, pinned into topic patches and connected with red string. It exists because the conspiracy-wall bit is funny when the conspiracy is who fancies who.
 
 Success is that someone screenshots the board into a chat and it reads as a real detective wall. That makes the visual payoff a product requirement, not decoration: any state a visitor can land on should be worth screenshotting, including an empty one.
 
@@ -67,5 +67,5 @@ Legible first:
 
 - Note body text meets 4.5:1 against its paper, including the oldest, most faded notes. The aging treatment is capped so it never crosses that line.
 - `prefers-reduced-motion` is respected everywhere, with a crossfade or instant state instead of movement.
-- Primary actions are at least 44px on touch; reaction stamps, being secondary and four to a note, sit at 36px. Every action available by drag has a tap path, since drag-to-connect is unusable one-handed.
+- Primary actions are at least 44px on touch; reaction stamps, being secondary and four to a note, sit at 36px. Controls on the wall counter-scale the board zoom, so a stamp is a real 36px target however far out the board is.
 - Colour is never the only carrier of meaning.

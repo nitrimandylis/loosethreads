@@ -12,7 +12,12 @@ test("stays in range for any id", () => {
     assert.ok(p.stock >= 0 && p.stock < PAPER_STOCKS, `stock ${p.stock}`);
     assert.ok(Math.abs(p.tilt) <= 4, `tilt ${p.tilt}`);
     assert.ok(Math.abs(p.pinShift) <= 20, `pinShift ${p.pinShift}`);
+    assert.ok(p.width >= 140 && p.width <= 280, `width ${p.width}`);
   }
+});
+
+test("a long rumour gets a wider sheet", () => {
+  assert.ok(paperFor(3, 400).width > paperFor(3, 20).width);
 });
 
 test("neighbouring notes never look the same", () => {
