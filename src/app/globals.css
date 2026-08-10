@@ -128,6 +128,13 @@ main {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
+  /* One-finger panning stays native; the element owning pinch (touch-action
+     forbids zoom) is what lets the board's own pinch handlers see it. */
+  touch-action: pan-x pan-y;
+  /* Flex so the wall's auto margins centre it when it is smaller than the
+     viewport (stepped back on a phone); margins collapse to zero on overflow
+     so normal scrolling is untouched. */
+  display: flex;
   cursor: grab;
   background-color: var(--cork);
   background-image: var(--grain),
@@ -167,6 +174,7 @@ main {
 
 .wall {
   position: relative;
+  margin: auto;
 }
 .wall-surface {
   position: relative;
