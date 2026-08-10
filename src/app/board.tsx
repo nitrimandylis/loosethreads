@@ -6,17 +6,8 @@ import { animate } from "animejs";
 import { Note } from "./note";
 import { Strings } from "./strings";
 import { Compose } from "./compose";
-import { TOPICS, SPREAD } from "@/lib/topics";
 import { paperFor } from "@/lib/paper";
-import {
-  wallBounds,
-  landingScale,
-  steppedBackScale,
-  busiestPoint,
-  pinOf,
-  FURNITURE,
-  LABEL_OFFSET,
-} from "@/lib/wall";
+import { wallBounds, landingScale, steppedBackScale, heartOf, pinOf, FURNITURE } from "@/lib/wall";
 import { mountTurnstile, getToken } from "@/lib/turnstile-client";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
@@ -135,7 +126,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
     const s = landingScale(boundsRef.current, el.clientWidth, el.clientHeight);
     scaleRef.current = s;
     setScale(s);
-    const focus = busiestPoint(notes, boundsRef.current);
+    const focus = heartOf(notes, boundsRef.current);
     requestAnimationFrame(() => view(s, focus));
     // Deliberately once, on mount: after this the visitor owns the viewport.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,20 +345,6 @@ export default function Board({ notes: served, edges: servedEdges }: {
             } as React.CSSProperties
           }
         >
-          {TOPICS.map((t) => (
-            <div
-              key={t.id}
-              className="zone"
-              style={{
-                left: t.cx - SPREAD - bounds.x,
-                top: t.cy - LABEL_OFFSET - bounds.y,
-                width: SPREAD * 2,
-              }}
-            >
-              <span className="zone-tape">{t.label}</span>
-            </div>
-          ))}
-
           <header
             className="wall-head"
             style={{
@@ -401,6 +378,37 @@ export default function Board({ notes: served, edges: servedEdges }: {
               Needs to come down? <a href={REPO} target="_blank" rel="noreferrer noopener">Say so</a>.
             </p>
           </aside>
+
+          {/* Props. They are not notes and never come down: an empty wall is
+              still somebody's wall, and a busy one grows out around them. */}
+          <figure
+            className="wall-photo"
+            style={{
+              left: FURNITURE.photo.x - bounds.x,
+              top: FURNITURE.photo.y - bounds.y,
+              width: FURNITURE.photo.w,
+            }}
+          >
+            <span className="pin" aria-hidden="true" />
+            <span className="photo-plate" aria-hidden="true">
+              <span className="photo-redaction" />
+            </span>
+            <figcaption>Subject unknown</figcaption>
+          </figure>
+
+          <div
+            className="wall-map"
+            style={{
+              left: FURNITURE.map.x - bounds.x,
+              top: FURNITURE.map.y - bounds.y,
+              width: FURNITURE.map.w,
+              height: FURNITURE.map.h,
+            }}
+            aria-hidden="true"
+          >
+            <span className="pin" />
+            <span className="map-mark" />
+          </div>
 
           {notes.map((n) => (
             <Note

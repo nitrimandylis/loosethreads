@@ -10,11 +10,9 @@
 // extensionless specifiers, and wall.ts is the first lib file another lib file
 // imports. tsconfig has allowImportingTsExtensions for exactly this.
 import { paperFor } from "./paper.ts";
-import { TOPICS, SPREAD } from "./topics.ts";
 
 export type Placed = {
   id: number;
-  topic: string;
   body: string;
   x: number;
   y: number;
@@ -26,19 +24,33 @@ export type Bounds = { x: number; y: number; w: number; h: number };
 /** Empty wall around the outermost thing on it, in board px. */
 const MARGIN = 130;
 
-/** Zone labels are stuck on masking tape above their patch. */
-export const LABEL_OFFSET = SPREAD + 74;
-
 /**
- * Things pinned to the wall that are not notes: the wordmark on tape and the
- * index card explaining the place. They are part of the board rather than
- * chrome floating over it, which is what makes an empty wall still a wall, and
- * they are laid out in board coordinates so the bounds have to know about them.
+ * Things pinned to the wall that are not notes, and never come down: the
+ * wordmark on tape, the card explaining the place, a redacted photograph and a
+ * torn piece of a map. They are part of the board rather than chrome floating
+ * over it, which is what makes an empty wall still a wall.
+ *
+ * Positions are fixed, sized for a board of a dozen or so notes. A busier wall
+ * grows out past them and starts crowding them, which is what happens to the
+ * furniture on a real wall too.
  */
 export const FURNITURE = {
-  header: { x: -300, y: -LABEL_OFFSET - 250, w: 600, h: 170 },
-  rules: { x: -690, y: -LABEL_OFFSET - 300, w: 290, h: 270 },
+  // Sizes are measured, not guessed: placement keeps notes off these boxes, so
+  // a box smaller than what actually renders lets a note cover the rules card.
+  header: { x: -300, y: -600, w: 602, h: 156 },
+  rules: { x: -900, y: -300, w: 297, h: 310 },
+  photo: { x: 690, y: -420, w: 249, h: 260 },
+  map: { x: -840, y: 240, w: 307, h: 250 },
 };
+
+/** Corners of a prop, for tying string onto without crossing what it says. */
+const corner = (
+  f: { x: number; y: number; w: number; h: number },
+  side: "tl" | "tr" | "bl" | "br"
+) => ({
+  x: side === "tl" || side === "bl" ? f.x + 22 : f.x + f.w - 22,
+  y: side === "tl" || side === "tr" ? f.y + 8 : f.y + f.h - 8,
+});
 
 /**
  * Height a note will end up, near enough. Only bounds and the fit calculation
@@ -63,9 +75,8 @@ export function pinOf(n: Placed): { x: number; y: number } {
 }
 
 /**
- * The whole wall, always including every zone label. The labels are part of
- * the furniture, so an empty board is still a wall with six taped headings on
- * it rather than a blank brown rectangle.
+ * The whole wall, always including the furniture, so an empty board is a small
+ * dressed corner of cork rather than a big blank rectangle.
  */
 export function wallBounds(notes: Placed[]): Bounds {
   let minX = Infinity;
@@ -80,9 +91,6 @@ export function wallBounds(notes: Placed[]): Bounds {
     if (y + h > maxY) maxY = y + h;
   };
 
-  for (const t of TOPICS) {
-    swallow(t.cx - SPREAD, t.cy - LABEL_OFFSET, SPREAD * 2, LABEL_OFFSET + SPREAD);
-  }
   for (const f of Object.values(FURNITURE)) {
     swallow(f.x, f.y, f.w, f.h);
   }
@@ -137,22 +145,19 @@ export function steppedBackScale(bounds: Bounds, vw: number, vh: number): number
 }
 
 /**
- * String that was already on the wall before anybody pinned anything: it runs
- * between the zone headings, not between rumours. Without it an empty board is
- * six labels on brown cork, and the empty board is the state most strangers
- * arrive to.
+ * String that was already on the wall before anybody pinned anything, running
+ * between the props. Without it an empty board is a few objects on cork, and
+ * the empty board is the state most strangers arrive to.
  */
 export function furnitureStrings(): Array<[{ x: number; y: number }, { x: number; y: number }]> {
-  const at = (id: string) => {
-    const t = TOPICS.find((z) => z.id === id) ?? TOPICS[0];
-    // Just under the tape, not through it: string across a heading reads as a
-    // strikethrough and the headings have to stay readable.
-    return { x: t.cx, y: t.cy - LABEL_OFFSET + 52 };
-  };
+  const { header, rules, photo, map } = FURNITURE;
+  // Tied corner to corner rather than pin to pin: string sags, and a run
+  // between two pins at the top of each prop hangs straight across whatever
+  // the prop says. The headings have to stay readable.
   return [
-    [at("politics"), at("celebrities")],
-    [at("celebrities"), at("tech")],
-    [at("music"), at("sports")],
+    [corner(rules, "tr"), corner(header, "bl")],
+    [corner(header, "br"), corner(photo, "tl")],
+    [corner(photo, "bl"), corner(map, "tr")],
   ];
 }
 
@@ -194,28 +199,19 @@ export function stringPath(a: { x: number; y: number }, b: { x: number; y: numbe
 const r = (n: number) => Math.round(n * 10) / 10;
 
 /**
- * Where to point the visitor when the wall does not fit: the centre of gravity
- * of the busiest zone, so they land on notes and string rather than on the
- * quiet corner of an empty patch.
+ * Where to point the visitor when the wall does not fit: the middle of the
+ * notes, so they land on gossip and string rather than on a quiet edge. With
+ * nothing pinned up yet, the middle of the furniture instead.
  */
-export function busiestPoint(notes: Placed[], fallback: Bounds): { x: number; y: number } {
+export function heartOf(notes: Placed[], fallback: Bounds): { x: number; y: number } {
   if (notes.length === 0) return { x: fallback.x + fallback.w / 2, y: fallback.y + fallback.h / 2 };
 
-  const counts = new Map<string, number>();
-  for (const n of notes) counts.set(n.topic, (counts.get(n.topic) ?? 0) + 1);
-
-  let top = notes[0].topic;
-  for (const [topic, count] of counts) {
-    if (count > (counts.get(top) ?? 0)) top = topic;
-  }
-
-  const inZone = notes.filter((n) => n.topic === top);
-  const sum = inZone.reduce(
+  const sum = notes.reduce(
     (acc, n) => {
       const b = noteBox(n);
       return { x: acc.x + b.x + b.w / 2, y: acc.y + b.y + b.h / 2 };
     },
     { x: 0, y: 0 }
   );
-  return { x: sum.x / inZone.length, y: sum.y / inZone.length };
+  return { x: sum.x / notes.length, y: sum.y / notes.length };
 }

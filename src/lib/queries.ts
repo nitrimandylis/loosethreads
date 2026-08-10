@@ -2,7 +2,6 @@ import { sql, ensureSchema } from "@/lib/db";
 
 export type NoteRow = {
   id: number;
-  topic: string;
   body: string;
   x: number;
   y: number;
@@ -22,7 +21,7 @@ export async function getApprovedBoard(): Promise<{ notes: NoteRow[]; edges: Edg
   if (!process.env.DATABASE_URL) return { notes: [], edges: [] };
   await ensureSchema();
   const rows = (await sql`
-    SELECT n.id, n.topic, n.body, n.x, n.y, n.created_at,
+    SELECT n.id, n.body, n.x, n.y, n.created_at,
            COALESCE(
              jsonb_object_agg(r.kind, r.cnt) FILTER (WHERE r.kind IS NOT NULL),
              '{}'::jsonb
@@ -61,7 +60,7 @@ export type LiveEdge = EdgeRow & {
 export async function getLiveBoard(): Promise<{ notes: LiveNote[]; edges: LiveEdge[] }> {
   await ensureSchema();
   const notes = (await sql`
-    SELECT id, topic, body, x, y, created_at
+    SELECT id, body, x, y, created_at
     FROM nodes WHERE status = 'approved' ORDER BY id DESC
   `) as LiveNote[];
   const edges = (await sql`

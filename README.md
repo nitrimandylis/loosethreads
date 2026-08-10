@@ -27,7 +27,7 @@
 
 ## 🧵 What is this
 
-Loose Threads is one corkboard where anyone, anonymously, pins a gossip note into a topic patch and ties it to another note with red string — the conspiracy wall you've seen in every detective movie, except the suspects are celebrities, your local scene, and whoever someone decided to implicate at 2am.
+Loose Threads is one corkboard where anyone, anonymously, pins a gossip note and ties it to another note with red string — the conspiracy wall you've seen in every detective movie, except the suspects are celebrities, your local scene, and whoever someone decided to implicate at 2am.
 
 Everything a stranger posts goes live the moment they post it. There is no queue and no approval step. The board had one once, and an empty board is what it got: you post a rumour, nothing appears, you close the tab. Moderation now happens *after* the fact, from `/admin`, where anything on the board can be edited in place or taken down.
 
@@ -46,7 +46,7 @@ nick@loosethreads:~$ npm run dev
 | 01 | **one corkboard, no canvas library** | a scroll container with a CSS scale on it. Notes are placed from their stored coordinates, string is an SVG layer, cork is feTurbulence noise. Nothing here is a node editor |
 | 02 | **five paper stocks** | legal pad, manila card, memo, message slip, torn receipt: different widths, different edges, different printing, picked from the note id so the wall looks hand-assembled |
 | 03 | **red string** | tap a note, **Tie string**, tap the second one. It sags with the span, casts a shadow on the cork, crosses over the paper and stops short of the pins |
-| 04 | **topic patches** | curated topics own adjacent patches of the one wall. A new note lands at whichever of 20 candidate spots sits furthest from its neighbours, so notes crowd without burying each other |
+| 04 | **one wall that grows** | no sections and nothing to pick before posting. The wall is an ellipse whose radius grows as √n, so it is equally dense at five notes and at three hundred; a new note takes whichever of 20 candidate spots sits furthest from its neighbours and clear of the furniture |
 | 05 | **instant publish** | no queue, no approval. Your note travels from the sheet you wrote it on to its place on the wall, and the board polls every 15s so your friends' notes land while you watch |
 | 06 | **takedown, not review** | `/admin` shows what is live and can edit it in place or remove it. Removal is soft and takes its strings with it |
 | 07 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`, stamped as ink on the paper rather than buttons on a card. One per note per browser |
@@ -107,7 +107,7 @@ flowchart LR
 | admin | `src/app/admin/` | secret-gated live board: edit in place, remove, sign out |
 | db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`, `reactions`) |
 | queries | `src/lib/queries.ts` | public board read + the moderator's live-board read |
-| topics | `src/lib/topics.ts` | the topic list, patch coordinates, and collision-aware placement |
+| placement | `src/lib/placement.ts` | where a new note lands: a wall that grows as √n, keeping clear of what is already up |
 | demo board | `src/lib/demo.ts` | `/?demo=1` in development: a fixed board with no database, for design work and for re-shooting the link preview |
 | design system | `src/app/globals.css` | the whole visual system, documented in the header comment |
 

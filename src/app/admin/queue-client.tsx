@@ -66,7 +66,6 @@ export function Board({ notes, edges }: { notes: LiveNote[]; edges: LiveEdge[] }
                   <div className="paper" aria-hidden="true" />
                   <div className="pin" />
                   <div className="qmeta">
-                    <span className="tag">{n.topic}</span>
                     <span className="qage">{since(n.created_at)}</span>
                   </div>
                   <textarea

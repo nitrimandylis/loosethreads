@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { TOPICS } from "@/lib/topics";
 import { MAX_BODY } from "@/lib/limits";
 import { getToken } from "@/lib/turnstile-client";
 import type { NoteRow } from "@/lib/queries";
@@ -10,9 +9,9 @@ import type { NoteRow } from "@/lib/queries";
  * You write on the note itself.
  *
  * A blank sheet comes up from the bottom of the wall and what you type on it is
- * literally what gets pinned: same paper, same handwriting, same size. The old
- * version was a dark card with a textarea and a select in it, which is the one
- * surface in the app that looked like every other app.
+ * literally what gets pinned: same paper, same handwriting, same size. There is
+ * nothing else to fill in. Picking a section used to come first, which is a
+ * taxonomy question asked of someone who came here to say one thing.
  */
 export function Compose({
   onPinned,
@@ -24,7 +23,6 @@ export function Compose({
   const sheet = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
-  const [topic, setTopic] = useState(TOPICS[0].id);
   const [busy, setBusy] = useState(false);
 
   const left = MAX_BODY - body.length;
@@ -35,7 +33,7 @@ export function Compose({
     const res = await fetch("/api/submit", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body, topic, turnstileToken: token }),
+      body: JSON.stringify({ body, turnstileToken: token }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -84,20 +82,6 @@ export function Compose({
         />
 
         <div className={`compose-left${left < 60 ? " tight" : ""}`}>{left} left on the paper</div>
-
-        <div className="compose-tabs" role="radiogroup" aria-label="Where it goes">
-          {TOPICS.map((t) => (
-            <button
-              key={t.id}
-              role="radio"
-              aria-checked={topic === t.id}
-              className={`tab${topic === t.id ? " on" : ""}`}
-              onClick={() => setTopic(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
 
         <button className="compose-pin" disabled={busy || !body.trim()} onClick={pin}>
           {busy ? "Pinning…" : "Pin it"}

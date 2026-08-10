@@ -18,6 +18,10 @@
    per-frame filter. Gradients alone read as CSS up close, which is what
    this pass was called to fix.
 
+   There are no sections. One wall, growing as √n from the middle (see
+   lib/placement.ts), so it is equally dense at five notes and at three
+   hundred.
+
    PAPER STOCKS (.stock-0 … .stock-4, chosen per note id in lib/paper.ts)
    Five different objects, not one card in five colours. Different widths,
    different edges, different printing:
@@ -32,9 +36,9 @@
    AGING: yellows the paper layer only. The ink ramps darker as the stock
    darkens so the oldest note still clears 4.5:1. Never fade the text.
 
-   LAYERING (inside .wall-surface): zones 0, furniture 1, notes 2,
-   string 3, the note you picked up 4. String crosses over paper and
-   stops short of the pins, which is the order a real wall has.
+   LAYERING (inside .wall-surface): furniture 1, notes 2, string 3, the
+   note you picked up 8. String crosses over paper and stops short of
+   the pins, which is the order a real wall has.
    ===================================================================== */
 
 :root {
@@ -62,7 +66,6 @@
   --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='4' seed='3'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23f)' opacity='0.2'/%3E%3C/svg%3E");
 
   /* semantic z-index scale, nothing gets an arbitrary 999 */
-  --z-zone: 0;
   --z-furniture: 1;
   --z-note: 2;
   --z-string: 3;
@@ -170,36 +173,12 @@ main {
   transform-origin: 0 0;
 }
 
-/* ---------- zone headings, on masking tape ---------- */
-.zone {
-  position: absolute;
-  z-index: var(--z-zone);
-  display: flex;
-  justify-content: center;
-  user-select: none;
-}
-.zone-tape {
-  padding: 9px 26px 8px;
-  background: rgba(226, 210, 170, 0.72);
-  color: #3a2c1b;
-  font-family: var(--type);
-  font-size: 21px;
-  font-weight: 700;
-  letter-spacing: 7px;
-  text-transform: uppercase;
-  transform: rotate(-0.7deg);
-  /* torn ends: the tape is lighter and ragged where it was pulled off */
-  clip-path: polygon(
-    2% 6%, 98% 0, 100% 88%, 96% 100%, 4% 96%, 0 12%
-  );
-  box-shadow: 0 2px 5px rgba(20, 12, 4, 0.35);
-  opacity: 0.92;
-}
-.zone:nth-child(even) .zone-tape {
-  transform: rotate(0.9deg);
-}
-
-/* ---------- furniture: the title and the rules are pinned up, not floated --- */
+/* =====================================================================
+   FURNITURE
+   Not notes, and never taken down: the wordmark, the rules, a redacted
+   photograph and a piece of a map. There are no sections on this wall,
+   so these are what make an empty board somebody's board.
+   ===================================================================== */
 .wall-head {
   position: absolute;
   z-index: var(--z-furniture);
@@ -280,6 +259,85 @@ main {
   color: #8a1b17;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* ---------- the redacted photograph ---------- */
+.wall-photo {
+  position: absolute;
+  z-index: var(--z-furniture);
+  margin: 0;
+  padding: 14px 14px 12px;
+  background: #f2ece0;
+  background-image: var(--fibre);
+  transform: rotate(2.2deg);
+  filter: drop-shadow(4px 8px 14px rgba(12, 7, 2, 0.55));
+}
+/* a photograph nobody has any business having: grey, badly lit, censored */
+.photo-plate {
+  position: relative;
+  display: block;
+  height: 196px;
+  background: linear-gradient(168deg, #8e8b83, #5d5a53 55%, #423f3a);
+  box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.45);
+}
+.photo-plate::after {
+  /* the shoulders and head of whoever this is */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 128px;
+  height: 122px;
+  transform: translateX(-50%);
+  border-radius: 62px 62px 0 0;
+  background: radial-gradient(60% 44% at 50% 26%, #6f6c65, #4a4842 70%, #3b3934);
+}
+.photo-redaction {
+  position: absolute;
+  left: 24%;
+  top: 34%;
+  width: 52%;
+  height: 26px;
+  background: #17140f;
+  transform: rotate(-1.4deg);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.wall-photo figcaption {
+  margin-top: 10px;
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+  color: #4a3a26;
+}
+
+/* ---------- a piece of a map, with one place circled ---------- */
+.wall-map {
+  position: absolute;
+  z-index: var(--z-furniture);
+  background-color: #e4dcc4;
+  background-image: var(--fibre),
+    /* streets: two grids at an angle to each other, neither of them square,
+       and one road cutting across both */
+    repeating-linear-gradient(96deg, transparent 0 44px, rgba(74, 58, 34, 0.62) 44px 46px),
+    repeating-linear-gradient(6deg, transparent 0 58px, rgba(74, 58, 34, 0.52) 58px 60px),
+    repeating-linear-gradient(52deg, transparent 0 148px, rgba(122, 84, 34, 0.55) 148px 154px);
+  transform: rotate(-1.6deg);
+  filter: drop-shadow(4px 8px 13px rgba(12, 7, 2, 0.5));
+  /* torn off whatever it was part of */
+  clip-path: polygon(0 3%, 96% 0, 100% 92%, 62% 100%, 28% 94%, 3% 100%);
+}
+.map-mark {
+  position: absolute;
+  left: 54%;
+  top: 44%;
+  width: 62px;
+  height: 52px;
+  border: 3px solid var(--red-string);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  opacity: 0.85;
 }
 
 /* =====================================================================
@@ -488,6 +546,8 @@ main {
 /* ---------- the pushpin ---------- */
 .note .pin,
 .wall-rules .pin,
+.wall-photo .pin,
+.wall-map .pin,
 .compose-sheet .pin {
   position: absolute;
   top: -9px;
@@ -503,6 +563,8 @@ main {
 }
 .note .pin::after,
 .wall-rules .pin::after,
+.wall-photo .pin::after,
+.wall-map .pin::after,
 .compose-sheet .pin::after {
   content: "";
   position: absolute;
@@ -516,6 +578,16 @@ main {
 }
 .wall-rules .pin {
   left: 30px;
+}
+/* brass on the props, red is for notes and string */
+.wall-photo .pin,
+.wall-map .pin {
+  --pin: radial-gradient(circle at 35% 28%, #ffe9a8 0%, #d5a936 40%, #8a660f 100%);
+}
+.wall-map .pin {
+  left: 38px;
+  /* fully inside the torn edge: clip-path on the map clips its children too */
+  top: 10px;
 }
 
 /* ---------- landed stamps: ink on the paper, never buttons ---------- */
@@ -844,40 +916,8 @@ main {
 .compose-left.tight {
   color: #a3170f;
 }
-.compose-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0 16px;
-}
-.tab {
-  padding: 7px 11px;
-  min-height: 36px;
-  border: 1px solid rgba(36, 26, 16, 0.32);
-  border-radius: 2px;
-  background: transparent;
-  color: rgba(36, 26, 16, 0.75);
-  font-family: var(--type);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transform: rotate(-1deg);
-  transition: background 130ms var(--ease-out), color 130ms var(--ease-out);
-}
-.tab:nth-child(even) {
-  transform: rotate(1.2deg);
-}
-.tab:hover {
-  background: rgba(36, 26, 16, 0.08);
-}
-.tab.on {
-  background: #a3170f;
-  border-color: #7d0f0a;
-  color: #fff;
-}
 .compose-pin {
+  margin-top: 16px;
   width: 100%;
   min-height: 48px;
   border: 1px solid rgba(0, 0, 0, 0.35);
@@ -975,7 +1015,6 @@ main {
   .note,
   .pin-btn,
   .step-btn,
-  .tab,
   .tray button {
     transition: none;
   }

@@ -10,12 +10,14 @@ A friend group first, then whoever they forward the link to. Most arrive from a 
 
 Two roles:
 
-- **Visitors** (everyone): read the board, pin a rumour into a topic, tie red string between two notes, stamp a note. Everything they submit is public immediately.
+- **Visitors** (everyone): read the board, pin a rumour, tie red string between two notes, stamp a note. Everything they submit is public immediately.
 - **The moderator** (Nick, one person, `ADMIN_SECRET`): can edit or remove anything that is already on the board. Nothing waits for him.
 
 ## Product Purpose
 
-One corkboard for anonymous gossip, pinned into topic patches and connected with red string. It exists because the conspiracy-wall bit is funny when the conspiracy is who fancies who.
+One corkboard for anonymous gossip, connected with red string. It exists because the conspiracy-wall bit is funny when the conspiracy is who fancies who.
+
+**There are no sections.** The board used to be six topic patches, which meant most of it was empty cork most of the time, a busy topic had nowhere to grow, and posting started with a taxonomy question asked of someone who came here to say one thing. There is one wall now. It grows as notes land on it and stays equally dense at any size, string is the only structure on it, and the props (the wordmark, the rules card, a redacted photograph, a piece of a map) are what make an empty one still somebody's wall.
 
 Success is that someone screenshots the board into a chat and it reads as a real detective wall. That makes the visual payoff a product requirement, not decoration: any state a visitor can land on should be worth screenshotting, including an empty one.
 

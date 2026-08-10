@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { sql, ensureSchema } from "@/lib/db";
 import { allowNote, allowEdge, allowReaction, clientIp, hasUpstash } from "@/lib/ratelimit";
 import { verifyTurnstile, hasTurnstile } from "@/lib/turnstile";
-import { TOPIC_IDS, placeInTopic, type Point } from "@/lib/topics";
+import { place, type Point } from "@/lib/placement";
+import { FURNITURE } from "@/lib/wall";
 import { isStamp } from "@/lib/reactions";
 import { MAX_BODY } from "@/lib/limits";
 
@@ -100,32 +101,29 @@ export async function POST(req: Request) {
   if (!(await allowNote(req))) return tooMany();
 
   const body = typeof data.body === "string" ? data.body.trim() : "";
-  const topic = typeof data.topic === "string" ? data.topic : "";
 
   if (!body || body.length > MAX_BODY) {
     return NextResponse.json({ error: `Note must be 1-${MAX_BODY} characters.` }, { status: 400 });
-  }
-  if (!TOPIC_IDS.has(topic)) {
-    return NextResponse.json({ error: "Unknown topic" }, { status: 400 });
   }
   if (!(await verifyTurnstile(token, ip))) {
     return NextResponse.json({ error: "Bot check failed. Refresh and retry." }, { status: 403 });
   }
 
-  // Place it clear of what's already pinned in that region.
+  // Place it clear of everything already pinned up. There are no sections any
+  // more: one wall, and it grows as notes land on it.
   const neighbours = (await sql`
-    SELECT x, y FROM nodes WHERE topic = ${topic} AND status = 'approved'
+    SELECT x, y FROM nodes WHERE status = 'approved'
   `) as Point[];
-  const { x, y } = placeInTopic(topic, neighbours);
+  const { x, y } = place(neighbours, Object.values(FURNITURE));
 
   // Hand the row back. It is public the instant this returns, so the board
   // pins it straight away rather than making the person who wrote it reload to
   // find out whether it worked. It needs the real id and the real coordinates:
   // a guessed position would move under them on the next load.
   const [note] = (await sql`
-    INSERT INTO nodes (topic, body, x, y, status)
-    VALUES (${topic}, ${body}, ${x}, ${y}, 'approved')
-    RETURNING id, topic, body, x, y, created_at
+    INSERT INTO nodes (body, x, y, status)
+    VALUES (${body}, ${x}, ${y}, 'approved')
+    RETURNING id, body, x, y, created_at
   `) as { id: number }[];
 
   return NextResponse.json({ ok: true, note: { ...note, reactions: {} } });

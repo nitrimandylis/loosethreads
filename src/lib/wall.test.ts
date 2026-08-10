@@ -4,7 +4,8 @@ import {
   wallBounds,
   landingScale,
   steppedBackScale,
-  busiestPoint,
+  fitScale,
+  heartOf,
   pinOf,
   noteBox,
   stringPath,
@@ -13,22 +14,22 @@ import {
   type Placed,
 } from "./wall.ts";
 
-const note = (id: number, topic: string, x: number, y: number, body = "a rumour"): Placed => ({
-  id,
-  topic,
-  body,
-  x,
-  y,
-});
+const note = (id: number, x: number, y: number, body = "a rumour"): Placed => ({ id, body, x, y });
 
 test("an empty wall is still a wall", () => {
-  // Six zone labels are furniture, so the bounds exist before any note does.
+  // The props are furniture, so the bounds exist before any note does.
   const b = wallBounds([]);
   assert.ok(b.w > 1000 && b.h > 500, `${b.w}x${b.h}`);
 });
 
+test("an empty wall fits a laptop screen", () => {
+  // It is the state most strangers arrive to, so it has to be one screenshot
+  // rather than a corner of a much larger brown rectangle.
+  assert.ok(fitScale(wallBounds([]), 1440, 900) > 0.6);
+});
+
 test("bounds swallow a note that sits outside every zone", () => {
-  const b = wallBounds([note(1, "tech", 9000, 9000)]);
+  const b = wallBounds([note(1, 9000, 9000)]);
   assert.ok(b.x + b.w > 9000, "right edge");
   assert.ok(b.y + b.h > 9000, "bottom edge");
 });
@@ -52,21 +53,16 @@ test("landing never zooms past life size", () => {
 
 test("an empty wall points at its own middle", () => {
   const b = wallBounds([]);
-  const p = busiestPoint([], b);
+  const p = heartOf([], b);
   assert.equal(p.x, b.x + b.w / 2);
   assert.equal(p.y, b.y + b.h / 2);
 });
 
-test("the busiest zone wins", () => {
-  const notes = [
-    note(1, "tech", 900, 0),
-    note(2, "tech", 950, 60),
-    note(3, "tech", 880, 120),
-    note(4, "music", -900, 700),
-  ];
-  const p = busiestPoint(notes, wallBounds(notes));
-  assert.ok(p.x > 500, `x ${p.x}`);
-  assert.ok(p.y < 400, `y ${p.y}`);
+test("the frame points at where the notes are", () => {
+  const notes = [note(1, 900, 0), note(2, 950, 60), note(3, 880, 120), note(4, 920, 40)];
+  const p = heartOf(notes, wallBounds(notes));
+  assert.ok(p.x > 800, `x ${p.x}`);
+  assert.ok(p.y > 0 && p.y < 400, `y ${p.y}`);
 });
 
 test("string stops short of both pins and hangs between them", () => {
@@ -87,7 +83,7 @@ test("a short string barely sags, a long one droops", () => {
 });
 
 test("the pin sits at the top of the sheet, near the middle", () => {
-  const n = note(3, "tech", 100, 200);
+  const n = note(3, 100, 200);
   const box = noteBox(n);
   const pin = pinOf(n);
   assert.ok(Math.abs(pin.x - (box.x + box.w / 2)) <= 20, `pin x ${pin.x}`);

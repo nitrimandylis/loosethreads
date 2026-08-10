@@ -3,6 +3,8 @@
 // preview image, so what you see here is what gets pasted into a group chat.
 
 import type { NoteRow, EdgeRow } from "./queries.ts";
+import { place, type Point } from "./placement.ts";
+import { FURNITURE } from "./wall.ts";
 
 const AGES = [2, 90, 800, 26, 300]; // hours old, to show the aging ramp
 
@@ -14,13 +16,15 @@ const BODIES = [
   "they are not brothers",
 ];
 
-const SPOTS = [
-  { topic: "celebrities", x: -190, y: -80 },
-  { topic: "celebrities", x: 40, y: -175 },
-  { topic: "tech", x: 545, y: -30 },
-  { topic: "celebrities", x: 75, y: 95 },
-  { topic: "music", x: -700, y: 430 },
-];
+// Deterministic stand-in for Math.random, so the demo board is the same board
+// every time: the link preview is shot from it.
+function seeded(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) % 2147483648;
+    return s / 2147483648;
+  };
+}
 
 const REACTIONS: Record<string, number>[] = [
   { CONFIRMED: 3, "👀": 7 },
@@ -35,12 +39,17 @@ export function demoBoard(): { notes: NoteRow[]; edges: EdgeRow[] } {
   // Fixed clock so the aging buckets are stable between runs and screenshots.
   const now = Date.parse("2026-08-10T12:00:00Z");
 
+  // Placed by the real placer, so the demo board is laid out exactly the way a
+  // real one would be.
+  const rand = seeded(9);
+  const spots: Point[] = [];
+  for (let i = 0; i < BODIES.length; i++) spots.push(place(spots, Object.values(FURNITURE), rand));
+
   const notes: NoteRow[] = BODIES.map((body, i) => ({
     id: i + 1,
-    topic: SPOTS[i].topic,
     body,
-    x: SPOTS[i].x,
-    y: SPOTS[i].y,
+    x: spots[i].x,
+    y: spots[i].y,
     created_at: new Date(now - AGES[i] * hour).toISOString(),
     reactions: REACTIONS[i],
   }));

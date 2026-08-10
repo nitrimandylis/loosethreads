@@ -103,11 +103,14 @@ export function ensureSchema(): Promise<void> {
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `;
+      // Sections are gone: nothing writes topic any more. The column stays so
+      // the rows that have one keep it, but it needs a default now that inserts
+      // no longer mention it. Idempotent, so it doubles as the migration.
+      await sql`ALTER TABLE nodes ALTER COLUMN topic SET DEFAULT ''`;
+
       await sql`CREATE INDEX IF NOT EXISTS reactions_node_idx ON reactions(node_id)`;
       await sql`CREATE INDEX IF NOT EXISTS nodes_status_idx ON nodes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS edges_status_idx ON edges(status)`;
-      // Nodes are read by topic when placing a new note.
-      await sql`CREATE INDEX IF NOT EXISTS nodes_topic_idx ON nodes(topic)`;
 
       // One string per pair of notes, in either direction: a string from A to B
       // is the same physical thing as one from B to A. Existing duplicates must
