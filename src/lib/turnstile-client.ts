@@ -51,6 +51,28 @@ export function mountTurnstile(el: HTMLElement, sitekey: string): void {
   });
 }
 
+// A token fetched while the visitor is still writing, so "Pin it" spends its
+// click on the network rather than on the widget. Tokens are single-use and
+// expire, so the stash is taken at most once and goes stale after 90s.
+let stash: { token: Promise<string | null>; at: number } | null = null;
+const STASH_MS = 90_000;
+
+export function prefetchToken(): void {
+  if (!stash || Date.now() - stash.at > STASH_MS) {
+    stash = { token: getToken(), at: Date.now() };
+  }
+}
+
+export async function takeToken(): Promise<string | null> {
+  const s = stash;
+  stash = null;
+  if (s && Date.now() - s.at <= STASH_MS) {
+    const t = await s.token;
+    if (t) return t;
+  }
+  return getToken();
+}
+
 export function getToken(): Promise<string | null> {
   const ts = window.turnstile;
   if (!ts || widgetId === null) return Promise.resolve(null);

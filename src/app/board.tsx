@@ -112,7 +112,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
     el.scrollTop += (prev.y - bounds.y) * scaleRef.current;
   }, [bounds]);
 
-  /** Read in an effect, never during render: has the board painted once? */
+  /** Has the board painted once? False during the whole first render, true
+      before any later one, so reading it while rendering is deterministic:
+      it separates "was here on load" from "arrived while reading". */
   const hasPainted = useCallback(() => painted.current, []);
 
   const say = useCallback((message: string) => {
@@ -659,6 +661,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
               selected={picked === n.id}
               tying={tying}
               isSource={tyingFrom === n.id}
+              settle={hasPainted() && landing?.note.id !== n.id}
               onPick={onPick}
               onTie={(id) => {
                 setTyingFrom(id);

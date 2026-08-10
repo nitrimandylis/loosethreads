@@ -399,6 +399,28 @@ main {
   text-wrap: pretty;
 }
 
+/* Somebody else's rumour landing while you read: it settles onto the cork
+   instead of popping into existence. `translate`, not `transform`, so the
+   tilt transform underneath is untouched. */
+@keyframes note-settle {
+  from {
+    opacity: 0;
+    translate: 0 -10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.note.settling {
+  animation: note-settle 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .note.settling {
+    animation: none;
+  }
+}
+
 /* lift toward the lamp: straighten, rise, deepen the cast shadow */
 .note:hover,
 .note:focus-visible {
@@ -703,8 +725,18 @@ main {
 .note.tyable .paper {
   box-shadow: 0 0 0 2px var(--red-string);
 }
+/* The note the string starts from is held up off the cork, not just ringed
+   like every candidate target: one end of the string is already in hand. */
+.note.string-end {
+  transform: rotate(calc(var(--tilt) * 0.2)) translateY(-6px) scale(1.05);
+  z-index: var(--z-picked);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.34)) drop-shadow(12px 20px 28px rgba(15, 9, 2, 0.6));
+}
 .note.string-end .paper {
-  box-shadow: 0 0 0 2px var(--red-string), 0 0 26px rgba(192, 35, 31, 0.55);
+  box-shadow: 0 0 0 3px var(--red-string), 0 0 30px rgba(192, 35, 31, 0.65);
+}
+.note.string-end .pin {
+  filter: drop-shadow(0 0 6px rgba(192, 35, 31, 0.9));
 }
 
 /* =====================================================================

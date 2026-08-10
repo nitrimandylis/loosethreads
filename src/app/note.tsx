@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { STAMPS } from "@/lib/reactions";
 import { ageBucket } from "@/lib/aging";
 import { paperFor } from "@/lib/paper";
@@ -29,6 +29,7 @@ export function Note({
   selected,
   tying,
   isSource,
+  settle,
   onPick,
   onTie,
 }: {
@@ -38,10 +39,21 @@ export function Note({
   selected: boolean;
   tying: boolean;
   isSource: boolean;
+  /** True when this note arrived after the board painted (someone else's
+      rumour landing mid-read): it settles in instead of popping. */
+  settle: boolean;
   onPick: (id: number) => void;
   onTie: (id: number) => void;
 }) {
   const [counts, setCounts] = useState<Record<string, number>>(note.reactions ?? {});
+  const [settling, setSettling] = useState(settle);
+  useEffect(() => {
+    if (!settling) return;
+    const t = setTimeout(() => setSettling(false), 600);
+    return () => clearTimeout(t);
+    // Mount only: a note settles once, when it first appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const stamped = useSyncExternalStore(subscribe, getStamped, getServerStamped);
   const mine = (kind: string) => isStamped(stamped, note.id, kind);
 
@@ -76,6 +88,7 @@ export function Note({
     selected ? "picked" : "",
     tying ? "tyable" : "",
     isSource ? "string-end" : "",
+    settling ? "settling" : "",
   ]
     .filter(Boolean)
     .join(" ");
