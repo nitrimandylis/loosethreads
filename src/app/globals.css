@@ -135,6 +135,10 @@ main {
      viewport (stepped back on a phone); margins collapse to zero on overflow
      so normal scrolling is untouched. */
   display: flex;
+  /* Every surface here is a drag target (cork pans, notes move), so a drag
+     must never start a text selection. The reword textarea opts back in. */
+  -webkit-user-select: none;
+  user-select: none;
   cursor: grab;
   background-color: var(--cork);
   background-image: var(--grain),
@@ -739,6 +743,8 @@ main {
 
 /* Rewording in place: the same paper, the same handwriting, editable */
 .note .body-edit {
+  -webkit-user-select: text;
+  user-select: text;
   width: 100%;
   min-height: 72px;
   border: none;
