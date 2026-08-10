@@ -215,3 +215,50 @@ export function heartOf(notes: Placed[], fallback: Bounds): { x: number; y: numb
   );
   return { x: sum.x / notes.length, y: sum.y / notes.length };
 }
+
+/** Frame around the wordmark and the rules card, for the establishing shot. */
+const FRAME_MARGIN = 60;
+export function furnitureFrame(): Bounds {
+  const { header, rules } = FURNITURE;
+  const minX = Math.min(header.x, rules.x);
+  const minY = Math.min(header.y, rules.y);
+  const maxX = Math.max(header.x + header.w, rules.x + rules.w);
+  const maxY = Math.max(header.y + header.h, rules.y + rules.h);
+  return {
+    x: minX - FRAME_MARGIN,
+    y: minY - FRAME_MARGIN,
+    w: maxX - minX + FRAME_MARGIN * 2,
+    h: maxY - minY + FRAME_MARGIN * 2,
+  };
+}
+
+/** True when the whole frame is on screen in the view (scale, focus). */
+export function frameVisible(
+  frame: Bounds,
+  scale: number,
+  focus: { x: number; y: number },
+  vw: number,
+  vh: number
+): boolean {
+  const halfW = vw / 2 / scale;
+  const halfH = vh / 2 / scale;
+  return (
+    frame.x >= focus.x - halfW &&
+    frame.x + frame.w <= focus.x + halfW &&
+    frame.y >= focus.y - halfH &&
+    frame.y + frame.h <= focus.y + halfH
+  );
+}
+
+/** Free zoom never goes past 1:1 or further out than the survey scale. */
+export function clampScale(s: number, survey: number): number {
+  return Math.min(1, Math.max(survey, s));
+}
+
+/**
+ * New scroll offset that keeps the board point currently under `pointer`
+ * (a viewport offset in px) in the same place across a scale change.
+ */
+export function anchorScroll(scroll: number, pointer: number, from: number, to: number): number {
+  return ((scroll + pointer) / from) * to - pointer;
+}

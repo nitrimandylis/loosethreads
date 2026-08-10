@@ -9,6 +9,10 @@ import {
   pinOf,
   noteBox,
   stringPath,
+  furnitureFrame,
+  frameVisible,
+  clampScale,
+  anchorScroll,
   MIN_READABLE,
   readableFloor,
   type Placed,
@@ -88,4 +92,37 @@ test("the pin sits at the top of the sheet, near the middle", () => {
   const pin = pinOf(n);
   assert.ok(Math.abs(pin.x - (box.x + box.w / 2)) <= 20, `pin x ${pin.x}`);
   assert.ok(pin.y <= box.y, `pin y ${pin.y}`);
+});
+
+test("furnitureFrame covers the header and the rules card", () => {
+  const f = furnitureFrame();
+  // header spans x -300..302, rules x -900..-603; frame adds 60 margin
+  assert.equal(f.x, -960);
+  assert.equal(f.y, -660); // header top -600 minus margin
+  assert.ok(f.x + f.w >= 302 + 60);
+  assert.ok(f.y + f.h >= 10 + 60); // rules bottom is -300+310=10
+});
+
+test("frameVisible is true only when the whole frame fits the view", () => {
+  const frame = { x: 0, y: 0, w: 100, h: 100 };
+  // viewport 400x400 at scale 1 centred on the frame centre: fits
+  assert.equal(frameVisible(frame, 1, { x: 50, y: 50 }, 400, 400), true);
+  // centred far away: does not fit
+  assert.equal(frameVisible(frame, 1, { x: 1000, y: 50 }, 400, 400), false);
+  // viewport smaller than the frame at this scale: does not fit
+  assert.equal(frameVisible(frame, 1, { x: 50, y: 50 }, 80, 400), false);
+});
+
+test("clampScale stays inside survey..1", () => {
+  assert.equal(clampScale(0.05, 0.2), 0.2);
+  assert.equal(clampScale(3, 0.2), 1);
+  assert.equal(clampScale(0.5, 0.2), 0.5);
+});
+
+test("anchorScroll keeps the point under the pointer fixed", () => {
+  // content offset (scroll+pointer) is 300 at scale 1 -> board point 300.
+  // at scale 2 that point sits at content 600; pointer still at 100 -> scroll 500.
+  assert.equal(anchorScroll(200, 100, 1, 2), 500);
+  // identity: same scale, same scroll
+  assert.equal(anchorScroll(200, 100, 1, 1), 200);
 });
