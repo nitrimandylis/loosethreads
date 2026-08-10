@@ -38,6 +38,10 @@ export async function setAdminCookie(): Promise<void> {
   });
 }
 
+export async function clearAdminCookie(): Promise<void> {
+  (await cookies()).delete(COOKIE);
+}
+
 export async function isAdmin(): Promise<boolean> {
   const t = token();
   if (!t) return false;

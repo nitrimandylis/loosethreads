@@ -2,95 +2,139 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PendingNote, PendingEdge } from "@/lib/queries";
+import type { LiveNote, LiveEdge } from "@/lib/queries";
+import { MAX_BODY } from "@/lib/limits";
 
-export function Queue({ notes, edges }: { notes: PendingNote[]; edges: PendingEdge[] }) {
+function since(iso: string): string {
+  const mins = Math.floor((Date.now() - Date.parse(iso)) / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / 1440)}d ago`;
+}
+
+export function Board({ notes, edges }: { notes: LiveNote[]; edges: LiveEdge[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
-  const [bodies, setBodies] = useState<Record<number, string>>(
-    () => Object.fromEntries(notes.map((n) => [n.id, n.body]))
-  );
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [err, setErr] = useState<string | null>(null);
 
-  async function decide(kind: "node" | "edge", id: number, action: "approve" | "reject") {
+  async function act(kind: "node" | "edge", id: number, action: "edit" | "remove", body?: string) {
     setBusy(`${kind}-${id}`);
-    const payload: Record<string, unknown> = { kind, id, action };
-    if (kind === "node" && action === "approve") {
-      payload.body = bodies[id] ?? "";
-    }
-    await fetch("/api/admin/decision", {
+    setErr(null);
+    const res = await fetch("/api/admin/decision", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ kind, id, action, body }),
     });
     setBusy(null);
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({ error: "Failed" }));
+      setErr(e.error ?? "Failed");
+      return;
+    }
+    if (action === "edit") {
+      setDrafts((d) => {
+        const next = { ...d };
+        delete next[id];
+        return next;
+      });
+    }
     router.refresh();
+  }
+
+  async function remove(kind: "node" | "edge", id: number, what: string) {
+    if (!confirm(`Take this off the board?\n\n${what}`)) return;
+    await act(kind, id, "remove");
   }
 
   return (
     <div className="queue">
+      {err && <p className="err">{err}</p>}
+
       <section>
-        <h2>Notes ({notes.length})</h2>
-        {notes.length === 0 && <p className="empty">Nothing pending.</p>}
+        <h2>On the board ({notes.length})</h2>
+        {notes.length === 0 && <p className="empty">Nothing pinned yet.</p>}
         <div className="qgrid">
-          {notes.map((n) => (
-            <div className="qrow" key={n.id}>
-              <div className="sticky-note sticky-preview stock-1">
-                {/* same paper layer the public note uses, so the preview is honest */}
-                <div className="paper" aria-hidden="true" />
-                <div className="pin" />
-                <div className="qmeta">
-                  <span className="tag">{n.topic}</span>
+          {notes.map((n) => {
+            const draft = drafts[n.id];
+            const dirty = draft !== undefined && draft.trim() !== n.body;
+            const tooLong = (draft ?? n.body).trim().length > MAX_BODY;
+            return (
+              <div className="qrow" key={n.id}>
+                <div className="sticky-note sticky-preview stock-1">
+                  {/* same paper layer the public note uses, so the preview is honest */}
+                  <div className="paper" aria-hidden="true" />
+                  <div className="pin" />
+                  <div className="qmeta">
+                    <span className="tag">{n.topic}</span>
+                    <span className="qage">{since(n.created_at)}</span>
+                  </div>
+                  <textarea
+                    className="qbody-edit"
+                    value={draft ?? n.body}
+                    aria-label="Note text"
+                    onChange={(e) => setDrafts((d) => ({ ...d, [n.id]: e.target.value }))}
+                    rows={4}
+                  />
                 </div>
-                <textarea
-                  className="qbody-edit"
-                  value={bodies[n.id] ?? n.body}
-                  onChange={(e) =>
-                    setBodies((prev) => ({ ...prev, [n.id]: e.target.value }))
-                  }
-                  rows={4}
-                />
+                <div className="qactions">
+                  <button
+                    className="ok"
+                    disabled={busy === `node-${n.id}` || !dirty || tooLong}
+                    onClick={() => act("node", n.id, "edit", draft)}
+                  >
+                    {tooLong ? "Too long" : "Save edit"}
+                  </button>
+                  <button
+                    className="no"
+                    disabled={busy === `node-${n.id}`}
+                    onClick={() => remove("node", n.id, n.body)}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
-              <div className="qactions">
-                <button
-                  className="ok"
-                  disabled={busy === `node-${n.id}`}
-                  onClick={() => decide("node", n.id, "approve")}
-                >
-                  Approve
-                </button>
-                <button
-                  className="no"
-                  disabled={busy === `node-${n.id}`}
-                  onClick={() => decide("node", n.id, "reject")}
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
       <section>
-        <h2>Connections ({edges.length})</h2>
-        {edges.length === 0 && <p className="empty">Nothing pending.</p>}
+        <h2>Strings ({edges.length})</h2>
+        {edges.length === 0 && <p className="empty">Nothing tied together yet.</p>}
         {edges.map((e) => (
           <div className="qrow" key={e.id}>
             <p className="qbody">
               <em>&ldquo;{e.source_body}&rdquo;</em> ↔ <em>&ldquo;{e.target_body}&rdquo;</em>
             </p>
             <div className="qactions">
-              <button className="ok" disabled={busy === `edge-${e.id}`} onClick={() => decide("edge", e.id, "approve")}>
-                Approve
-              </button>
-              <button className="no" disabled={busy === `edge-${e.id}`} onClick={() => decide("edge", e.id, "reject")}>
-                Reject
+              <button
+                className="no"
+                disabled={busy === `edge-${e.id}`}
+                onClick={() => remove("edge", e.id, `${e.source_body} ↔ ${e.target_body}`)}
+              >
+                Remove
               </button>
             </div>
           </div>
         ))}
       </section>
     </div>
+  );
+}
+
+export function SignOut() {
+  const router = useRouter();
+  return (
+    <button
+      className="signout"
+      onClick={async () => {
+        await fetch("/api/admin/logout", { method: "POST" });
+        router.refresh();
+      }}
+    >
+      Sign out
+    </button>
   );
 }
 

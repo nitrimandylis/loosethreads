@@ -1,6 +1,6 @@
 import { isAdmin } from "@/lib/admin";
-import { getQueue } from "@/lib/queries";
-import { Queue, Login } from "./queue-client";
+import { getLiveBoard } from "@/lib/queries";
+import { Board, Login, SignOut } from "./queue-client";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +13,18 @@ export default async function AdminPage() {
       </main>
     );
   }
-  const { notes, edges } = await getQueue();
+  const { notes, edges } = await getLiveBoard();
   return (
     <main className="admin">
-      <h1>Moderation queue</h1>
-      <Queue notes={notes} edges={edges} />
+      <div className="admin-head">
+        <h1>What is on the board</h1>
+        <SignOut />
+      </div>
+      <p className="admin-note">
+        Everything here is already public. Editing rewrites it in place; removing takes it down
+        immediately.
+      </p>
+      <Board notes={notes} edges={edges} />
     </main>
   );
 }
