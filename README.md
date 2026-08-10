@@ -19,7 +19,7 @@
 
 *an infinite corkboard for anonymous rumors, with red string and nobody on duty*
 
-![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-hand__rolled-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/moderation-after__the__fact-c0231f?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
+![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow,_no_chrome-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/moderation-after__the__fact-c0231f?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
 
 </div>
 
@@ -31,7 +31,7 @@ Loose Threads is one corkboard where anyone, anonymously, pins a gossip note and
 
 Everything a stranger posts goes live the moment they post it. There is no queue and no approval step. The board had one once, and an empty board is what it got: you post a rumour, nothing appears, you close the tab. Moderation now happens *after* the fact, from `/admin`, where anything on the board can be edited in place or taken down.
 
-You can't tidy it. The wall is canonical and you are a guest: scroll it, step back from it, read it, add to it.
+You can't tidy it for everyone else. The wall is canonical and you are a guest: pan it, step back from it, read it, add to it. What you posted from this browser stays yours to take down, reword, untie or unstamp, and you can drag any note somewhere else in your own view without anybody else's wall moving.
 
 ```console
 nick@loosethreads:~$ npm run dev
@@ -43,7 +43,7 @@ nick@loosethreads:~$ npm run dev
 
 | | feature | what it actually does |
 |---|---|---|
-| 01 | **one corkboard, no canvas library** | a scroll container with a CSS scale on it. Notes are placed from their stored coordinates, string is an SVG layer, cork is feTurbulence noise. Nothing here is a node editor |
+| 01 | **one corkboard, no node editor** | React Flow sits under the wall for its panning and zooming and nothing else: no dot grid, no controls, no minimap, no visible handles. Notes are its nodes at their stored coordinates, string is a custom edge, cork is feTurbulence noise |
 | 02 | **five paper stocks** | legal pad, manila card, memo, message slip, torn receipt: different widths, different edges, different printing, picked from the note id so the wall looks hand-assembled |
 | 03 | **red string** | tap a note, **Tie string**, tap the second one. It sags with the span, casts a shadow on the cork, crosses over the paper and stops short of the pins |
 | 04 | **one wall that grows** | no sections and nothing to pick before posting. The wall is an ellipse whose radius grows as √n, so it is equally dense at five notes and at three hundred; a new note takes whichever of 20 candidate spots sits furthest from its neighbours and clear of the furniture |
@@ -51,7 +51,9 @@ nick@loosethreads:~$ npm run dev
 | 06 | **takedown, not review** | `/admin` shows what is live and can edit it in place or remove it. Removal is soft and takes its strings with it |
 | 07 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`, stamped as ink on the paper rather than buttons on a card. One per note per browser |
 | 08 | **notes age** | paper yellows the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
-| 09 | **no accounts** | no login, no profile, no email. Turnstile and a per-IP rate limit are the whole gate |
+| 09 | **yours to manage** | every row you create hands your browser a secret. Take your own note down, reword it, untie your string, take a stamp back, all without an account. Clear your browser data and it's gone |
+| 10 | **rearrange your own view** | drag a note (hold to lift, on touch) and it moves for you only, in sessionStorage. The string follows it. Nobody else's wall changes and a closed tab straightens yours back out |
+| 11 | **no accounts** | no login, no profile, no email. Turnstile and a per-IP rate limit are the whole gate |
 
 ## 🚀 Run it
 
@@ -87,7 +89,9 @@ flowchart LR
     A[anonymous visitor] -->|note or red string| B[Turnstile + rate limit]
     B -->|unconfigured in prod| X[503 · submissions closed]
     B --> C[(status=approved)]
-    C --> H[public canvas]
+    C --> H[public wall]
+    H -.->|the browser that made it, with its secret| M[/api/manage]
+    M --> C
     H -.->|you, later| F[/admin]
     F -->|edit in place| C
     F -->|remove| R[(status=removed)]
@@ -95,15 +99,19 @@ flowchart LR
 
 | layer/file | path | job |
 |---|---|---|
-| board | `src/app/board.tsx` | the wall: scroll, drag-to-pan, step back, framing, tying, polling, wall furniture |
-| note | `src/app/note.tsx` | one pinned sheet, its stamps as ink, and the tray you get when you pick it up |
-| string | `src/app/strings.tsx` | the SVG yarn layer, sag and all |
+| board | `src/app/board.tsx` | the wall: the React Flow viewport, step back, framing, tying, untying, dragging, polling |
+| note | `src/app/note.tsx` | one pinned sheet as a React Flow node, its stamps as ink, and the tray you get when you pick it up |
+| string | `src/app/yarn.tsx` | the red string as a custom edge: shadow, body, lit edge, sag and all |
+| furniture | `src/app/furniture.tsx` | the wordmark, rules card, redacted photo and torn map, as nodes that never move |
 | compose | `src/app/compose.tsx` | the blank sheet you write the rumour on |
 | wall geometry | `src/lib/wall.ts` | bounds, landing scale, pin points, string paths. Pure functions, no DOM |
 | paper | `src/lib/paper.ts` | which stock, tilt, pin and width a note gets, derived from its id |
 | aging | `src/lib/aging.ts` | note age → visual bucket |
 | submit api | `src/app/api/submit/route.ts` | the gate: fails closed in prod, rate-limits per action, Turnstile-checks, publishes |
-| rate limits | `src/lib/ratelimit.ts` | three buckets priced by cost: notes 5, strings 15, stamps 60, per 10 min per IP |
+| manage api | `src/app/api/manage/route.ts` | acting on your own rows: take down, reword, untie, unstamp. The secret is the whole proof |
+| your rows | `src/lib/mine.ts`, `src/lib/manage.ts` | the secrets this browser holds (localStorage), and the SQL that checks one inside the `WHERE` |
+| your view | `src/lib/moved.ts` | where you dragged notes to, in sessionStorage. Never sent anywhere |
+| rate limits | `src/lib/ratelimit.ts` | four buckets priced by cost: notes 5, strings 15, stamps 60, manage 30, per 10 min per IP |
 | admin | `src/app/admin/` | secret-gated live board: edit in place, remove, sign out |
 | db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`, `reactions`) |
 | queries | `src/lib/queries.ts` | public board read + the moderator's live-board read |
@@ -114,7 +122,7 @@ flowchart LR
 Design intent lives in [`PRODUCT.md`](PRODUCT.md); the palette, paper stocks and type
 pairing are documented at the top of `globals.css`. Read both before restyling anything.
 
-**Stack:** Next.js 16 · React 19 · anime.js · Neon Postgres · Upstash · Cloudflare Turnstile · TypeScript
+**Stack:** Next.js 16 · React 19 · React Flow · anime.js · Neon Postgres · Upstash · Cloudflare Turnstile · TypeScript
 
 ---
 
@@ -122,6 +130,6 @@ pairing are documented at the top of `globals.css`. Read both before restyling a
 
 **[Nick Trimandylis](https://github.com/nitrimandylis)**
 
-`THE STRING CONNECTS EVERYTHING — THE QUEUE DECIDES WHAT YOU SEE`
+`THE STRING CONNECTS EVERYTHING // NOBODY IS CHECKING THIS`
 
 </div>
