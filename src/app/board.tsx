@@ -7,7 +7,18 @@ import { Note } from "./note";
 import { Strings } from "./strings";
 import { Compose } from "./compose";
 import { paperFor } from "@/lib/paper";
-import { wallBounds, landingScale, steppedBackScale, heartOf, pinOf, FURNITURE } from "@/lib/wall";
+import {
+  wallBounds,
+  landingScale,
+  steppedBackScale,
+  heartOf,
+  pinOf,
+  furnitureFrame,
+  shotFrame,
+  frameVisible,
+  fitScale,
+  FURNITURE,
+} from "@/lib/wall";
 import { mountTurnstile, getToken } from "@/lib/turnstile-client";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
@@ -130,18 +141,75 @@ export default function Board({ notes: served, edges: servedEdges }: {
     };
   }, []);
 
-  // First framing: the widest view of the wall that leaves the writing
-  // readable. If the wall is bigger than that, they land on the busiest patch
-  // of it rather than on whichever corner happened to be at the origin.
+  // First framing. If the landing view would already show the wordmark and
+  // the rules card (small wall, wide screen), land straight on it. Otherwise
+  // open on the furniture so a stranger reads what this is, hold a beat, then
+  // travel to the busiest patch. Any input hands the viewport over.
   useEffect(() => {
     const el = scroller.current;
     if (!el || painted.current) return;
     painted.current = true;
-    const s = landingScale(boundsRef.current, el.clientWidth, el.clientHeight);
-    scaleRef.current = s;
-    setScale(s);
-    const focus = heartOf(notes, boundsRef.current);
-    requestAnimationFrame(() => view(s, focus));
+
+    const b = boundsRef.current;
+    const s = landingScale(b, el.clientWidth, el.clientHeight);
+    const focus = heartOf(notes, b);
+
+    const settle = (atScale: number) => {
+      scaleRef.current = atScale;
+      setScale(atScale);
+    };
+
+    // Landing already shows the wordmark and the rules: nothing to establish.
+    if (frameVisible(furnitureFrame(), s, focus, el.clientWidth, el.clientHeight)) {
+      settle(s);
+      requestAnimationFrame(() => view(s, focus));
+      return;
+    }
+
+    const frame = shotFrame(el.clientWidth, el.clientHeight);
+    const shotScale = Math.min(1, fitScale(frame, el.clientWidth, el.clientHeight));
+    const shotFocus = { x: frame.x + frame.w / 2, y: frame.y + frame.h / 2 };
+    settle(shotScale);
+    requestAnimationFrame(() => view(shotScale, shotFocus));
+
+    let cancelled = false;
+    const cancel = () => {
+      cancelled = true;
+      // Wherever the travel was when they grabbed, that is now the view.
+      setScale(scaleRef.current);
+    };
+    const inputs = ["pointerdown", "wheel", "keydown", "touchstart"] as const;
+    for (const t of inputs) el.addEventListener(t, cancel, { once: true, passive: true });
+
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      if (reduced()) {
+        settle(s);
+        view(s, focus);
+        return;
+      }
+      const proxy = { s: shotScale, x: shotFocus.x, y: shotFocus.y };
+      animate(proxy, {
+        s,
+        x: focus.x,
+        y: focus.y,
+        duration: 900,
+        ease: "inOutQuint",
+        onUpdate: () => {
+          if (cancelled) return;
+          scaleRef.current = proxy.s;
+          view(proxy.s, { x: proxy.x, y: proxy.y });
+        },
+        onComplete: () => {
+          if (!cancelled) settle(s);
+        },
+      });
+    }, 700);
+
+    return () => {
+      clearTimeout(timer);
+      for (const t of inputs) el.removeEventListener(t, cancel);
+    };
     // Deliberately once, on mount: after this the visitor owns the viewport.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

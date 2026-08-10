@@ -10,6 +10,7 @@ import {
   noteBox,
   stringPath,
   furnitureFrame,
+  shotFrame,
   frameVisible,
   clampScale,
   anchorScroll,
@@ -101,6 +102,15 @@ test("furnitureFrame covers the header and the rules card", () => {
   assert.equal(f.y, -660); // header top -600 minus margin
   assert.ok(f.x + f.w >= 302 + 60);
   assert.ok(f.y + f.h >= 10 + 60); // rules bottom is -300+310=10
+});
+
+test("the shot frames everything on a laptop, just the rules on a phone", () => {
+  const full = furnitureFrame();
+  assert.deepEqual(shotFrame(1440, 900), full);
+  const phone = shotFrame(390, 844);
+  assert.ok(phone.w < full.w, "phone frame is the rules card only");
+  // and the rules card is actually readable in it
+  assert.ok(fitScale(phone, 390, 844) > 0.8, `${fitScale(phone, 390, 844)}`);
 });
 
 test("frameVisible is true only when the whole frame fits the view", () => {

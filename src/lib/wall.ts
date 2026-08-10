@@ -232,6 +232,25 @@ export function furnitureFrame(): Bounds {
   };
 }
 
+/**
+ * What the establishing shot frames. The full furniture frame when it fits at
+ * a scale where the rules card is still readable; on a narrow screen that
+ * scale does not exist, so the shot frames the rules card alone and the
+ * travel to the notes pans past the wordmark instead.
+ */
+const SHOT_READABLE = 0.55;
+export function shotFrame(vw: number, vh: number): Bounds {
+  const full = furnitureFrame();
+  if (fitScale(full, vw, vh) >= SHOT_READABLE) return full;
+  const { rules } = FURNITURE;
+  return {
+    x: rules.x - FRAME_MARGIN,
+    y: rules.y - FRAME_MARGIN,
+    w: rules.w + FRAME_MARGIN * 2,
+    h: rules.h + FRAME_MARGIN * 2,
+  };
+}
+
 /** True when the whole frame is on screen in the view (scale, focus). */
 export function frameVisible(
   frame: Bounds,
