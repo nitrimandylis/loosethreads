@@ -47,7 +47,9 @@ export async function getApprovedBoard(): Promise<{ notes: NoteRow[]; edges: Edg
   return { notes, edges };
 }
 
-export type PendingNote = NoteRow & { status: string; created_at: string };
+// The queue read doesn't join reactions (a pending note has none), so this
+// deliberately omits them rather than inheriting a field that's always absent.
+export type PendingNote = Omit<NoteRow, "reactions"> & { status: string };
 export type PendingEdge = EdgeRow & {
   created_at: string;
   source_body: string;

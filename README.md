@@ -43,12 +43,14 @@ nick@loosethreads:~$ npm run dev
 
 | | feature | what it actually does |
 |---|---|---|
-| 01 | **infinite canvas** | what it actually is — pan/zoom/minimap corkboard via React Flow, notes pinned as sticky cards |
-| 02 | **red string** | drag from one note to another to claim they're connected — submitted, not drawn, until a human signs off |
+| 01 | **infinite corkboard** | pan/zoom cork surface via React Flow, notes pinned as paper cards — five stocks, crooked, each one picked from its note id so the wall looks hand-assembled |
+| 02 | **red string** | drag off one pin onto another, or hit **Tie string** and tap two notes — submitted, not drawn, until a human signs off |
 | 03 | **topic regions** | curated topics own spatial clusters; new notes auto-place near their region so the chaos stays loosely sorted |
 | 04 | **pre-moderation queue** | nothing is public until approved — the only posture that survives "anonymous + gossip + the open internet" |
-| 05 | **local-only drag** | rearrange the board to your heart's content — it never persists and nobody else ever sees it |
-| 06 | **no accounts** | no login, no profile, no email — just Turnstile + a per-IP rate limit standing between you and the queue |
+| 05 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`, public and un-moderated, because a queue for reactions is a queue nobody empties |
+| 06 | **notes age** | paper yellows and curls the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
+| 07 | **local-only drag** | rearrange the board to your heart's content — it never persists and nobody else ever sees it |
+| 08 | **no accounts** | no login, no profile, no email — just Turnstile + a per-IP rate limit standing between you and the queue |
 
 ## 🚀 Run it
 
@@ -77,13 +79,19 @@ flowchart LR
 
 | layer/file | path | job |
 |---|---|---|
-| canvas | `src/app/canvas.tsx` | React Flow board, add-note panel, drag-to-connect → edge submission |
-| sticky node | `src/app/sticky-node.tsx` | the pinned card + topic-region labels |
-| submit api | `src/app/api/submit/route.ts` | validates, rate-limits, Turnstile-checks, queues notes + edges |
-| admin | `src/app/admin/` | secret-gated moderation queue with approve/reject |
-| db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`) |
+| canvas | `src/app/canvas.tsx` | React Flow board, add panel, string mode, framing, empty state |
+| sticky node | `src/app/sticky-node.tsx` | the pinned card, its stamps, its age |
+| paper | `src/lib/paper.ts` | which stock, tilt and pin a note gets, derived from its id |
+| aging | `src/lib/aging.ts` | note age → visual bucket |
+| submit api | `src/app/api/submit/route.ts` | validates, rate-limits, Turnstile-checks, queues notes + edges, takes reactions |
+| admin | `src/app/admin/` | secret-gated moderation queue, edit-before-publish |
+| db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`, `reactions`) |
 | queries | `src/lib/queries.ts` | approved-board read + pending-queue read |
 | topics | `src/lib/topics.ts` | the curated topic list and region coordinates |
+| design system | `src/app/globals.css` | the whole visual system, documented in the header comment |
+
+Design intent lives in [`PRODUCT.md`](PRODUCT.md); the palette, paper stocks and type
+pairing are documented at the top of `globals.css`. Read both before restyling anything.
 
 **Stack:** Next.js 16 · React 19 · React Flow · Neon Postgres · Upstash · Cloudflare Turnstile · TypeScript
 

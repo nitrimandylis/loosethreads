@@ -34,7 +34,9 @@ export function Queue({ notes, edges }: { notes: PendingNote[]; edges: PendingEd
         <div className="qgrid">
           {notes.map((n) => (
             <div className="qrow" key={n.id}>
-              <div className="sticky-note sticky-preview">
+              <div className="sticky-note sticky-preview stock-1">
+                {/* same paper layer the public note uses, so the preview is honest */}
+                <div className="paper" aria-hidden="true" />
                 <div className="pin" />
                 <div className="qmeta">
                   <span className="tag">{n.topic}</span>
@@ -75,7 +77,7 @@ export function Queue({ notes, edges }: { notes: PendingNote[]; edges: PendingEd
         {edges.map((e) => (
           <div className="qrow" key={e.id}>
             <p className="qbody">
-              <em>"{e.source_body}"</em> ↔ <em>"{e.target_body}"</em>
+              <em>&ldquo;{e.source_body}&rdquo;</em> ↔ <em>&ldquo;{e.target_body}&rdquo;</em>
             </p>
             <div className="qactions">
               <button className="ok" disabled={busy === `edge-${e.id}`} onClick={() => decide("edge", e.id, "approve")}>
@@ -109,11 +111,11 @@ export function Login() {
 
   return (
     <div className="login">
-      <h2>Moderator</h2>
       <input
         type="password"
         value={secret}
         placeholder="Admin secret"
+        aria-label="Admin secret"
         onChange={(e) => setSecret(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && login()}
       />
