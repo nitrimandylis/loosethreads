@@ -167,15 +167,12 @@ const TRIM = 8;
 const SAG = 0.075;
 const MAX_SAG = 62;
 
-/**
- * One length of red string, pin to pin, as an SVG path.
- *
- * It sags. A straight line between two points is what every node editor draws,
- * and it is the single clearest tell that a wall was rendered rather than
- * strung by hand. The droop is proportional to the span, so string across the
- * board hangs and string between two neighbours barely bends.
- */
-export function stringPath(a: { x: number; y: number }, b: { x: number; y: number }): string {
+/** The geometry of one length of string: trimmed endpoints and the control
+    point of the quadratic it hangs along. */
+export function stringCurve(
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+): { x1: number; y1: number; cx: number; cy: number; x2: number; y2: number } {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy) || 1;
@@ -193,7 +190,44 @@ export function stringPath(a: { x: number; y: number }, b: { x: number; y: numbe
   const cx = (x1 + x2) / 2;
   const cy = (y1 + y2) / 2 + sag * 2; // quadratic control sits twice the sag
 
-  return `M ${r(x1)} ${r(y1)} Q ${r(cx)} ${r(cy)} ${r(x2)} ${r(y2)}`;
+  return { x1, y1, cx, cy, x2, y2 };
+}
+
+/**
+ * One length of red string, pin to pin, as an SVG path.
+ *
+ * It sags. A straight line between two points is what every node editor draws,
+ * and it is the single clearest tell that a wall was rendered rather than
+ * strung by hand. The droop is proportional to the span, so string across the
+ * board hangs and string between two neighbours barely bends.
+ */
+export function stringPath(a: { x: number; y: number }, b: { x: number; y: number }): string {
+  const c = stringCurve(a, b);
+  return `M ${r(c.x1)} ${r(c.y1)} Q ${r(c.cx)} ${r(c.cy)} ${r(c.x2)} ${r(c.y2)}`;
+}
+
+/**
+ * How far a point is from the hanging string between two pins, in board px.
+ * Sampled rather than solved: picking a string with a fingertip does not
+ * need sub-pixel roots of a cubic.
+ */
+export function stringDistance(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  p: { x: number; y: number }
+): number {
+  const c = stringCurve(a, b);
+  let best = Infinity;
+  const STEPS = 24;
+  for (let i = 0; i <= STEPS; i++) {
+    const t = i / STEPS;
+    const u = 1 - t;
+    const x = u * u * c.x1 + 2 * u * t * c.cx + t * t * c.x2;
+    const y = u * u * c.y1 + 2 * u * t * c.cy + t * t * c.y2;
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d < best) best = d;
+  }
+  return best;
 }
 
 const r = (n: number) => Math.round(n * 10) / 10;

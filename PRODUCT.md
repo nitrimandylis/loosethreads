@@ -57,7 +57,7 @@ Everything should look assembled by a person at 2am: crooked, uneven, physically
 
 ## Anti-references
 
-- **A node editor.** Figjam, Miro, n8n, and React Flow's own defaults: dot grids, floating toolbars, a minimap parked in the corner, handles that read as ports.
+- **A node editor.** Figjam, Miro, n8n, and React Flow's own defaults: dot grids, floating toolbars, a minimap parked in the corner, handles that read as ports. (React Flow does power the viewport now, chosen for how panning and zooming feel; every default listed here stays off, and nothing on screen is its.)
 - **A generic AI-made dark SaaS app.** Slate cards, `rounded-2xl` on everything, a soft glow, one purple accent, Inter throughout.
 - Anything that reads as a tidy grid of equal cards, or as a social feed with counts and avatars.
 

@@ -126,36 +126,68 @@ main {
   position: relative;
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  /* One-finger panning stays native; the element owning pinch (touch-action
-     forbids zoom) is what lets the board's own pinch handlers see it. */
-  touch-action: pan-x pan-y;
-  /* Flex so the wall's auto margins centre it when it is smaller than the
-     viewport (stepped back on a phone); margins collapse to zero on overflow
-     so normal scrolling is untouched. */
-  display: flex;
   /* Every surface here is a drag target (cork pans, notes move), so a drag
      must never start a text selection. The reword textarea opts back in. */
   -webkit-user-select: none;
   user-select: none;
-  cursor: grab;
   background-color: var(--cork);
   background-image: var(--grain),
     radial-gradient(rgba(60, 42, 22, 0.5) 0.8px, transparent 1.1px),
     radial-gradient(rgba(150, 116, 72, 0.42) 0.7px, transparent 1px),
     linear-gradient(125deg, var(--cork-hi), var(--cork) 48%, var(--cork-low));
   /* co-prime tile sizes so the flecks never resolve into a lattice; a regular
-     dot grid is exactly the node-editor tell this board is built against */
-  /* the lighting gradient must cover the whole wall in one pass; tiling it
-     leaves a visible seam where the board is wider than the tile */
+     dot grid is exactly the node-editor tell this board is built against.
+     The board syncs background-position to the viewport on every move, so
+     the grain pans with the wall (and never zooms), the way the scroller's
+     background-attachment: local used to behave. */
   background-size: 420px 420px, 23px 23px, 31px 31px, 100% 100%;
   background-position: 0 0, 0 0, 14px 5px, 0 0;
   background-repeat: repeat, repeat, repeat, no-repeat;
-  background-attachment: local;
 }
-.board:active {
+
+/* React Flow underneath, dressed as the wall: transparent pane over our
+   cork, grab cursors like the scroller had, no default node chrome. */
+.board .react-flow {
+  background: transparent;
+}
+.board .react-flow__pane {
+  cursor: grab;
+}
+.board .react-flow__pane:active {
   cursor: grabbing;
+}
+.board.tying .react-flow__pane,
+.board.tying .react-flow__node {
+  cursor: crosshair;
+}
+.board .react-flow__node {
+  cursor: grab;
+  /* React Flow turns pointer-events off for nodes it considers inert
+     (draggable false in tying mode), but our notes always take taps: that
+     is how a tying target gets chosen. */
+  pointer-events: all !important;
+}
+.board .react-flow__node.dragging {
+  cursor: grabbing;
+}
+/* The pushpin anchors the string ties to: present for geometry, never seen */
+.board .pin-handle {
+  opacity: 0;
+  pointer-events: none;
+  width: 2px;
+  height: 2px;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+  background: none;
+}
+/* A hovered or dragged note rises above the string, which node zIndex alone
+   cannot express: React Flow sets wrapper z-index inline. */
+.board .react-flow__node:hover {
+  z-index: var(--z-picked) !important;
+}
+.board .react-flow__node.dragging {
+  z-index: 9 !important;
 }
 
 /* the desk lamp: a warm pool in the upper third, dark at every edge. Fixed to
@@ -176,15 +208,6 @@ main {
   );
 }
 
-.wall {
-  position: relative;
-  margin: auto;
-}
-.wall-surface {
-  position: relative;
-  transform-origin: 0 0;
-}
-
 /* =====================================================================
    FURNITURE
    Not notes, and never taken down: the wordmark, the rules, a redacted
@@ -192,8 +215,8 @@ main {
    so these are what make an empty board somebody's board.
    ===================================================================== */
 .wall-head {
-  position: absolute;
-  z-index: var(--z-furniture);
+  /* the node wrapper positions it; relative so the wrapper takes its size */
+  position: relative;
   padding: 26px 20px 22px;
   background: #efe2c0;
   background-image: var(--fibre);
@@ -236,8 +259,7 @@ main {
 }
 
 .wall-rules {
-  position: absolute;
-  z-index: var(--z-furniture);
+  position: relative;
   padding: 26px 22px 20px;
   background: #e9dcbb;
   background-image: var(--fibre);
@@ -275,8 +297,7 @@ main {
 
 /* ---------- the redacted photograph ---------- */
 .wall-photo {
-  position: absolute;
-  z-index: var(--z-furniture);
+  position: relative;
   margin: 0;
   padding: 14px 14px 12px;
   background: #f2ece0;
@@ -326,8 +347,7 @@ main {
 
 /* ---------- a piece of a map, with one place circled ---------- */
 .wall-map {
-  position: absolute;
-  z-index: var(--z-furniture);
+  position: relative;
   background-color: #e4dcc4;
   background-image: var(--fibre),
     /* streets: two grids at an angle to each other, neither of them square,
@@ -366,8 +386,8 @@ main {
   --pin: radial-gradient(circle at 35% 28%, #ff8b7e 0%, #e23b30 38%, #9c130c 100%);
   --age: none;
 
-  position: absolute;
-  z-index: var(--z-note);
+  /* the node wrapper positions it; relative so the wrapper takes its size */
+  position: relative;
   padding: 24px 16px 14px;
   color: var(--ink);
   font-family: var(--hand);
@@ -426,16 +446,11 @@ main {
 }
 
 /* Pulled off the cork mid-drag: highest thing on the wall, big cast shadow.
-   The drag itself writes `translate`, which composes with this transform. */
-.note.lifted {
+   React Flow marks the dragged node wrapper with .dragging. */
+.react-flow__node.dragging .note {
   transform: rotate(calc(var(--tilt) * 0.15)) scale(1.06);
-  z-index: var(--z-picked);
   filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35)) drop-shadow(16px 26px 34px rgba(15, 9, 2, 0.6));
   cursor: grabbing;
-  /* a long-press that lifts a note must not also select its text or open
-     the callout menu */
-  -webkit-user-select: none;
-  user-select: none;
   -webkit-touch-callout: none;
 }
 
@@ -780,21 +795,13 @@ main {
   filter: drop-shadow(0 0 6px rgba(192, 35, 31, 0.9));
 }
 
-/* An invisible fat stroke over string this browser tied, so a fingertip can
-   find a 3px piece of yarn. Everything else in the svg stays inert. */
-.yarn-hit {
-  pointer-events: stroke;
-  stroke: transparent;
-  stroke-width: 22;
-  fill: none;
-  cursor: pointer;
-}
-
 /* The untie chip hangs at the string's droop, counter-scaled like the tray
    so it is a real target however far out the board is. */
 .untie-chip {
   position: absolute;
   z-index: var(--z-picked);
+  /* the viewport portal it renders in is pointer-events: none */
+  pointer-events: all;
   transform: translate(-50%, -50%) scale(var(--inv, 1));
   min-height: 36px;
   padding: 8px 12px;
@@ -818,16 +825,14 @@ main {
    Three strokes: cast shadow, the yarn, and the lit top edge. It sags,
    crosses over the paper, and stops short of the pins.
    ===================================================================== */
-.strings {
-  position: absolute;
-  inset: 0;
-  z-index: var(--z-string);
-  pointer-events: none;
-  overflow: visible;
-}
-.strings path {
+/* The yarn paths live inside React Flow's edge svg now; the classes are the
+   same three strokes they always were. */
+.yarn-shadow,
+.yarn-core,
+.yarn-lit {
   fill: none;
   stroke-linecap: round;
+  pointer-events: none;
 }
 .yarn-shadow {
   stroke: rgba(12, 6, 2, 0.42);

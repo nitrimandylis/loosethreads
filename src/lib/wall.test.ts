@@ -9,6 +9,7 @@ import {
   pinOf,
   noteBox,
   stringPath,
+  stringDistance,
   furnitureFrame,
   shotFrame,
   frameVisible,
@@ -127,6 +128,17 @@ test("clampScale stays inside survey..1", () => {
   assert.equal(clampScale(0.05, 0.2), 0.2);
   assert.equal(clampScale(3, 0.2), 1);
   assert.equal(clampScale(0.5, 0.2), 0.5);
+});
+
+test("stringDistance is near zero on the string, honest off it", () => {
+  const a = { x: 0, y: 0 };
+  const b = { x: 400, y: 0 };
+  // the hanging midpoint sits the full sag below the chord: sag 30 for a
+  // 400px span, and y(0.5) = 0.5 * control-y = 30
+  const sagged = { x: 200, y: 30 };
+  assert.ok(stringDistance(a, b, sagged) < 4, `${stringDistance(a, b, sagged)}`);
+  // a point 100px above the chord is at least ~100 away
+  assert.ok(stringDistance(a, b, { x: 200, y: -100 }) > 90);
 });
 
 test("anchorScroll keeps the point under the pointer fixed", () => {
