@@ -25,6 +25,8 @@ const reactionLimiter = bucket("reaction", 60, "10 m");
 // Tighter bucket for admin login attempts: brute-force protection on the only
 // real auth gate in the app.
 const loginLimiter = bucket("login", 5, "15 m");
+// Managing your own rows: secret-gated already, the bucket just caps replay.
+const manageLimiter = bucket("manage", 30, "10 m");
 
 // Trust the proxy-set client IP, not the attacker-controlled left-most
 // X-Forwarded-For. On Vercel `x-real-ip` is set by the trusted ingress; fall
@@ -51,3 +53,4 @@ export const allowNote = (req: Request) => check(noteLimiter, req);
 export const allowEdge = (req: Request) => check(edgeLimiter, req);
 export const allowReaction = (req: Request) => check(reactionLimiter, req);
 export const allowLogin = (req: Request) => check(loginLimiter, req);
+export const allowManage = (req: Request) => check(manageLimiter, req);
