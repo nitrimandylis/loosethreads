@@ -46,3 +46,6 @@ next-env.d.ts
 
 # playwright mcp output
 .playwright-mcp/
+
+# design docs and plans, local only
+/docs/
