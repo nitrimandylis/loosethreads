@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { STAMPS } from "@/lib/reactions";
 import { ageBucket } from "@/lib/aging";
 import { paperFor } from "@/lib/paper";
@@ -39,6 +39,8 @@ export function Note({
   isSource,
   settle,
   say,
+  scaleOf,
+  onMoved,
   onTakedown,
   onPick,
   onTie,
@@ -53,6 +55,10 @@ export function Note({
       rumour landing mid-read): it settles in instead of popping. */
   settle: boolean;
   say: (message: string) => void;
+  /** Current board zoom, for turning a screen drag into board coordinates. */
+  scaleOf: () => number;
+  /** A drag ended here: the browser keeps the note at (x, y) locally. */
+  onMoved: (id: number, x: number, y: number) => void;
   onTakedown: (id: number) => void;
   onPick: (id: number) => void;
   onTie: (id: number) => void;
@@ -79,6 +85,132 @@ export function Note({
   const paper = paperFor(note.id, note.body.length);
   const age = ageBucket(note.created_at);
   const earned = STAMPS.filter((s) => counts[s]);
+
+  // ---- pull the pin out and move the note (this browser's view only) ----
+  // Mouse: drag it directly, a move past 6px is a drag rather than a click.
+  // Touch: hold 450ms to lift, then drag; a plain swipe keeps scrolling the
+  // board, which is how phones scroll a busy wall.
+  const article = useRef<HTMLElement>(null);
+  // Gesture handlers are attached once; they read the current mode here.
+  const mode = useRef({ tying, editing });
+  useEffect(() => {
+    mode.current = { tying, editing };
+  });
+  // Set when a drag just ended, so the click that follows does not open the
+  // tray on a note somebody was only moving.
+  const dragged = useRef(false);
+  const grab = useRef<{ sx: number; sy: number; dx: number; dy: number; on: boolean } | null>(null);
+
+  const follow = (dxScreen: number, dyScreen: number) => {
+    const el = article.current;
+    if (!el) return;
+    const s = scaleOf();
+    // The note lives inside the scaled surface, so screen px shrink by the
+    // zoom before they become board px.
+    grab.current!.dx = dxScreen / s;
+    grab.current!.dy = dyScreen / s;
+    el.style.translate = `${grab.current!.dx}px ${grab.current!.dy}px`;
+  };
+
+  const commitMove = () => {
+    const g = grab.current;
+    const el = article.current;
+    grab.current = null;
+    if (!g || !el) return;
+    el.classList.remove("lifted");
+    if (!g.on) return;
+    el.style.translate = "";
+    dragged.current = true;
+    onMoved(note.id, note.x + g.dx, note.y + g.dy);
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    if (mode.current.tying || mode.current.editing) return;
+    if ((e.target as HTMLElement).closest("button, textarea")) return;
+    grab.current = { sx: e.clientX, sy: e.clientY, dx: 0, dy: 0, on: false };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const g = grab.current;
+    if (!g) return;
+    const dx = e.clientX - g.sx;
+    const dy = e.clientY - g.sy;
+    if (!g.on && Math.hypot(dx, dy) > 6) {
+      g.on = true;
+      article.current?.classList.add("lifted");
+    }
+    if (g.on) follow(dx, dy);
+  };
+
+  // Touch needs native listeners: preventDefault inside a passive handler
+  // (which React uses for touch) is ignored, and the browser would scroll.
+  useEffect(() => {
+    const el = article.current;
+    if (!el) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let start: { x: number; y: number } | null = null;
+    let lifted = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1 || mode.current.tying || mode.current.editing) return;
+      if ((e.target as HTMLElement).closest("button, textarea")) return;
+      const t = e.touches[0];
+      start = { x: t.clientX, y: t.clientY };
+      lifted = false;
+      timer = setTimeout(() => {
+        lifted = true;
+        grab.current = { sx: start!.x, sy: start!.y, dx: 0, dy: 0, on: true };
+        el.classList.add("lifted");
+      }, 450);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!start) return;
+      if (e.touches.length !== 1) {
+        // A second finger means a pinch, not a lift.
+        if (timer) clearTimeout(timer);
+        start = null;
+        return;
+      }
+      const t = e.touches[0];
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      if (lifted) {
+        e.preventDefault(); // the note moves, not the board
+        follow(dx, dy);
+        return;
+      }
+      // Moving before the hold fires is a scroll; let the board have it.
+      if (Math.hypot(dx, dy) > 8 && timer) {
+        clearTimeout(timer);
+        timer = null;
+        start = null;
+      }
+    };
+    const onTouchEnd = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      start = null;
+      if (lifted) commitMove();
+      lifted = false;
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      if (timer) clearTimeout(timer);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+    // Attached once; everything mutable is read through refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function react(kind: string) {
     if (mine(kind)) return;
@@ -141,6 +273,7 @@ export function Note({
 
   return (
     <article
+      ref={article}
       className={classes}
       data-note-id={note.id}
       tabIndex={0}
@@ -154,7 +287,18 @@ export function Note({
           "--pin-shift": `${paper.pinShift}px`,
         } as React.CSSProperties
       }
-      onClick={() => onPick(note.id)}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={commitMove}
+      onPointerCancel={commitMove}
+      onClick={() => {
+        // The click at the end of a drag is the hand letting go, not a pick.
+        if (dragged.current) {
+          dragged.current = false;
+          return;
+        }
+        onPick(note.id);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();

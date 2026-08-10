@@ -421,6 +421,20 @@ main {
   }
 }
 
+/* Pulled off the cork mid-drag: highest thing on the wall, big cast shadow.
+   The drag itself writes `translate`, which composes with this transform. */
+.note.lifted {
+  transform: rotate(calc(var(--tilt) * 0.15)) scale(1.06);
+  z-index: var(--z-picked);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35)) drop-shadow(16px 26px 34px rgba(15, 9, 2, 0.6));
+  cursor: grabbing;
+  /* a long-press that lifts a note must not also select its text or open
+     the callout menu */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 /* lift toward the lamp: straighten, rise, deepen the cast shadow */
 .note:hover,
 .note:focus-visible {

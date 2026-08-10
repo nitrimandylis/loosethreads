@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { place, wallRadius, type Box, type Point } from "./placement.ts";
+import { applyMoves } from "./moved.ts";
 
 // Deterministic stand-in for Math.random so the tests aren't flaky.
 function seeded(seed: number) {
@@ -70,4 +71,15 @@ test("the wall is wider than it is tall", () => {
 
 test("same seed, same board", () => {
   assert.deepEqual(fill(10, 3), fill(10, 3));
+});
+
+test("applyMoves overrides only the moved note and keeps identity elsewhere", () => {
+  const notes = [
+    { id: 1, x: 0, y: 0 },
+    { id: 2, x: 50, y: 50 },
+  ];
+  const out = applyMoves(notes, { "2": { x: 500, y: -40 } });
+  assert.equal(out[0], notes[0]); // untouched object, same reference
+  assert.deepEqual(out[1], { id: 2, x: 500, y: -40 });
+  assert.equal(applyMoves(notes, {}), notes); // no moves, same array
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { animate, svg } from "animejs";
 import { stringPath, furnitureStrings } from "@/lib/wall";
 import { edgeSecret } from "@/lib/mine";
@@ -42,9 +42,13 @@ export function Strings({
 }) {
   // Ownership lives in localStorage, which the server render cannot see, so
   // the first client render must match it: hit paths only mount after
-  // hydration. Same idea as the stamp memory's server snapshot.
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  // hydration. The store trick gives false on the server and during
+  // hydration, true on every client render after.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   return (
     <svg className="strings" width={width} height={height} aria-hidden="true">

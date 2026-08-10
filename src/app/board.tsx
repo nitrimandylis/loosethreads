@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
 import { animate } from "animejs";
 import { Note } from "./note";
@@ -23,6 +31,7 @@ import {
 } from "@/lib/wall";
 import { mountTurnstile, getToken } from "@/lib/turnstile-client";
 import { rememberNote, rememberEdge, edgeSecret, forgetEdge } from "@/lib/mine";
+import { subscribeMoves, getMoves, getServerMoves, writeMove, applyMoves } from "@/lib/moved";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
 const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -62,6 +71,10 @@ export default function Board({ notes: served, edges: servedEdges }: {
   const [addedNotes, setAddedNotes] = useState<NoteRow[]>([]);
   const [addedEdges, setAddedEdges] = useState<EdgeRow[]>([]);
 
+  // What was on the wall when this visitor arrived. A note not in here came
+  // in while they were reading, and settles onto the cork instead of popping.
+  const [initialIds] = useState(() => new Set(served.map((n) => n.id)));
+
   const [picked, setPicked] = useState<number | null>(null);
   const [tyingFrom, setTyingFrom] = useState<number | null>(null);
   // Notes this visitor took down (their own): hidden now, gone from the
@@ -70,6 +83,10 @@ export default function Board({ notes: served, edges: servedEdges }: {
   // A string of yours you tapped (the untie chip shows), and strings untied.
   const [pickedString, setPickedString] = useState<number | null>(null);
   const [cutIds, setCutIds] = useState<Set<number>>(new Set());
+  // Notes this browser dragged somewhere else. Client-side only: the shared
+  // wall never learns about it. An external store, so the server snapshot
+  // (nothing moved) and the client's sessionStorage agree at hydration.
+  const moves = useSyncExternalStore(subscribeMoves, getMoves, getServerMoves);
   const [toast, setToast] = useState<string | null>(null);
   const [wide, setWide] = useState(false);
   const [scale, setScale] = useState(1);
@@ -79,10 +96,13 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
   const notes = useMemo(() => {
     const seen = new Set(served.map((n) => n.id));
-    return [...served, ...addedNotes.filter((n) => !seen.has(n.id))].filter(
+    const live = [...served, ...addedNotes.filter((n) => !seen.has(n.id))].filter(
       (n) => !downIds.has(n.id)
     );
-  }, [served, addedNotes, downIds]);
+    // Local rearrangement last: pins, strings, and bounds all follow from
+    // these coordinates, so a moved note takes its string with it.
+    return applyMoves(live, moves);
+  }, [served, addedNotes, downIds, moves]);
 
   const edges = useMemo(() => {
     // One string per pair, whichever list it came from: re-tying an existing
@@ -134,9 +154,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
     el.scrollTop += (prev.y - bounds.y) * scaleRef.current;
   }, [bounds]);
 
-  /** Has the board painted once? False during the whole first render, true
-      before any later one, so reading it while rendering is deterministic:
-      it separates "was here on load" from "arrived while reading". */
+  /** Read in an effect, never during render: has the board painted once? */
   const hasPainted = useCallback(() => painted.current, []);
 
   const say = useCallback((message: string) => {
@@ -482,6 +500,16 @@ export default function Board({ notes: served, edges: servedEdges }: {
     [say]
   );
 
+  /** A drag ended: keep the new spot, for this browser only. */
+  const onMoved = useCallback(
+    (id: number, x: number, y: number) => {
+      const first = Object.keys(getMoves()).length === 0;
+      writeMove(id, x, y);
+      if (first) say("Moved for you. Everyone else sees it where it was.");
+    },
+    [say]
+  );
+
   const onPick = useCallback(
     (id: number) => {
       setPickedString(null); // picking a note puts the string down
@@ -690,8 +718,10 @@ export default function Board({ notes: served, edges: servedEdges }: {
               selected={picked === n.id}
               tying={tying}
               isSource={tyingFrom === n.id}
-              settle={hasPainted() && landing?.note.id !== n.id}
+              settle={!initialIds.has(n.id) && landing?.note.id !== n.id}
               say={say}
+              scaleOf={() => scaleRef.current}
+              onMoved={onMoved}
               onTakedown={(id) => setDownIds((s) => new Set(s).add(id))}
               onPick={onPick}
               onTie={(id) => {
