@@ -47,28 +47,30 @@ export async function getApprovedBoard(): Promise<{ notes: NoteRow[]; edges: Edg
   return { notes, edges };
 }
 
-// The queue read doesn't join reactions (a pending note has none), so this
-// deliberately omits them rather than inheriting a field that's always absent.
-export type PendingNote = Omit<NoteRow, "reactions"> & { status: string };
-export type PendingEdge = EdgeRow & {
+// What the moderator sees: the live board, not a queue. Nothing waits for
+// approval any more, so this reads exactly what the public sees, newest first,
+// with the controls to edit or take it down. Reactions aren't joined because
+// they're never edited or removed here.
+export type LiveNote = Omit<NoteRow, "reactions">;
+export type LiveEdge = EdgeRow & {
   created_at: string;
   source_body: string;
   target_body: string;
 };
 
-export async function getQueue(): Promise<{ notes: PendingNote[]; edges: PendingEdge[] }> {
+export async function getLiveBoard(): Promise<{ notes: LiveNote[]; edges: LiveEdge[] }> {
   await ensureSchema();
   const notes = (await sql`
-    SELECT id, topic, body, x, y, status, created_at
-    FROM nodes WHERE status = 'pending' ORDER BY created_at
-  `) as PendingNote[];
+    SELECT id, topic, body, x, y, created_at
+    FROM nodes WHERE status = 'approved' ORDER BY id DESC
+  `) as LiveNote[];
   const edges = (await sql`
     SELECT e.id, e.source_id, e.target_id, e.created_at,
            s.body AS source_body, t.body AS target_body
     FROM edges e
     JOIN nodes s ON s.id = e.source_id
     JOIN nodes t ON t.id = e.target_id
-    WHERE e.status = 'pending' ORDER BY e.created_at
-  `) as PendingEdge[];
+    WHERE e.status = 'approved' ORDER BY e.id DESC
+  `) as LiveEdge[];
   return { notes, edges };
 }

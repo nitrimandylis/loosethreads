@@ -1,6 +1,9 @@
 // Cloudflare Turnstile server-side verification.
-// ponytail: if TURNSTILE_SECRET_KEY is unset we skip verification (local dev).
-// Set it + NEXT_PUBLIC_TURNSTILE_SITE_KEY in production or the form is bot-open.
+// If TURNSTILE_SECRET_KEY is unset we skip verification, which is right for
+// local dev and wrong in production now that submissions publish immediately:
+// see requireGate() in the submit route, which refuses writes instead.
+export const hasTurnstile = !!process.env.TURNSTILE_SECRET_KEY;
+
 export async function verifyTurnstile(token: string | null, ip: string): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return true;

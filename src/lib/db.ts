@@ -59,6 +59,24 @@ export function ensureSchema(): Promise<void> {
       await sql`CREATE INDEX IF NOT EXISTS reactions_node_idx ON reactions(node_id)`;
       await sql`CREATE INDEX IF NOT EXISTS nodes_status_idx ON nodes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS edges_status_idx ON edges(status)`;
+      // Nodes are read by topic when placing a new note.
+      await sql`CREATE INDEX IF NOT EXISTS nodes_topic_idx ON nodes(topic)`;
+
+      // One string per pair of notes, in either direction: a string from A to B
+      // is the same physical thing as one from B to A. Existing duplicates must
+      // go first, because CREATE UNIQUE INDEX raises 23505 on duplicate data and
+      // the catch below deliberately treats 23505 as a lost creation race, so a
+      // real failure here would be swallowed and the index would never exist.
+      await sql`
+        DELETE FROM edges a USING edges b
+        WHERE a.id > b.id
+          AND LEAST(a.source_id, a.target_id) = LEAST(b.source_id, b.target_id)
+          AND GREATEST(a.source_id, a.target_id) = GREATEST(b.source_id, b.target_id)
+      `;
+      await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS edges_pair_idx
+        ON edges (LEAST(source_id, target_id), GREATEST(source_id, target_id))
+      `;
       } catch (err) {
         // Concurrent instances can race CREATE ... IF NOT EXISTS at the catalog
         // level (Postgres 23505 on the seq/index): if another instance won, the

@@ -1,28 +1,35 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-// ponytail: rate limit only wired up when Upstash env is present. Missing env =>
-// no limit (fine for local dev). In production set the Upstash vars or the
-// public submit endpoint is unthrottled.
-const hasUpstash =
+// Rate limiting is only wired up when the Upstash env is present. Missing env
+// means no limit, which is fine locally and is NOT fine in production now that
+// nothing queues behind a moderator: see requireGate() in the submit route.
+export const hasUpstash =
   !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
 
 const redis = hasUpstash ? Redis.fromEnv() : null;
 
-const submitLimiter = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "10 m"), prefix: "gossip:submit" })
-  : null;
+// Three buckets, priced by what each action costs. A stamp is a counter on
+// something already public; a rumour is permanent public content about a real
+// person. Sharing one bucket meant stamping five notes locked you out of
+// posting for ten minutes, and friends behind one NAT shared the budget.
+function bucket(name: string, count: number, window: "10 m" | "15 m") {
+  return redis
+    ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(count, window), prefix: `gossip:${name}` })
+    : null;
+}
 
-// Tighter bucket for admin login attempts — brute-force protection on the only
+const noteLimiter = bucket("note", 5, "10 m");
+const edgeLimiter = bucket("edge", 15, "10 m");
+const reactionLimiter = bucket("reaction", 60, "10 m");
+// Tighter bucket for admin login attempts: brute-force protection on the only
 // real auth gate in the app.
-const loginLimiter = redis
-  ? new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(5, "15 m"), prefix: "gossip:login" })
-  : null;
+const loginLimiter = bucket("login", 5, "15 m");
 
-// ponytail: trust the proxy-set client IP, not the attacker-controlled left-most
-// X-Forwarded-For. On Vercel `x-real-ip` is set by the trusted ingress; fall back
-// to the right-most XFF hop (closest to our proxy), then to a shared "anon"
-// bucket (deny-by-default-ish: unidentified requests share one strict bucket).
+// Trust the proxy-set client IP, not the attacker-controlled left-most
+// X-Forwarded-For. On Vercel `x-real-ip` is set by the trusted ingress; fall
+// back to the right-most XFF hop (closest to our proxy), then to a shared
+// "anon" bucket (unidentified requests share one strict bucket).
 export function clientIp(req: Request): string {
   const real = req.headers.get("x-real-ip");
   if (real) return real.trim();
@@ -34,14 +41,13 @@ export function clientIp(req: Request): string {
   return "anon";
 }
 
-export async function allow(req: Request): Promise<boolean> {
-  if (!submitLimiter) return true;
-  const { success } = await submitLimiter.limit(clientIp(req));
+async function check(limiter: Ratelimit | null, req: Request): Promise<boolean> {
+  if (!limiter) return true;
+  const { success } = await limiter.limit(clientIp(req));
   return success;
 }
 
-export async function allowLogin(req: Request): Promise<boolean> {
-  if (!loginLimiter) return true;
-  const { success } = await loginLimiter.limit(clientIp(req));
-  return success;
-}
+export const allowNote = (req: Request) => check(noteLimiter, req);
+export const allowEdge = (req: Request) => check(edgeLimiter, req);
+export const allowReaction = (req: Request) => check(reactionLimiter, req);
+export const allowLogin = (req: Request) => check(loginLimiter, req);

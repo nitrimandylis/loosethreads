@@ -23,12 +23,53 @@ export function topicById(id: string): Topic | undefined {
   return TOPICS.find((t) => t.id === id);
 }
 
-// Random point inside a topic's region (spread ~±550px around the center).
-export function placeInTopic(id: string): { x: number; y: number } {
+export type Point = { x: number; y: number };
+
+const SPREAD = 550; // half-width of a topic's region, in board px
+const CANDIDATES = 20;
+
+/**
+ * Pick a spot for a new note inside its topic region.
+ *
+ * Purely random placement buries notes: the region is 1100x1100 and a note is
+ * about 210x150, so collisions start showing up around 8 notes in one topic.
+ * Nobody reviews placement before a note lands any more, and x,y is never
+ * editable afterwards, so the board has to get this right on the first try.
+ *
+ * Generate a handful of candidates and keep whichever sits furthest from the
+ * notes already there. Notes still overlap at the corners, which is what makes
+ * it look like a wall rather than a database; what they never do is land
+ * squarely on top of each other.
+ *
+ * `rand` is injectable so the choice can be tested without stubbing globals.
+ */
+export function placeInTopic(
+  id: string,
+  existing: Point[] = [],
+  rand: () => number = Math.random
+): Point {
   const t = topicById(id) ?? TOPICS[0];
-  const spread = 550;
-  return {
-    x: Math.round(t.cx + (Math.random() * 2 - 1) * spread),
-    y: Math.round(t.cy + (Math.random() * 2 - 1) * spread),
-  };
+  const draw = (): Point => ({
+    x: Math.round(t.cx + (rand() * 2 - 1) * SPREAD),
+    y: Math.round(t.cy + (rand() * 2 - 1) * SPREAD),
+  });
+
+  if (existing.length === 0) return draw();
+
+  let best = draw();
+  let bestGap = -1;
+  for (let i = 0; i < CANDIDATES; i++) {
+    const p = i === 0 ? best : draw();
+    // squared distance is enough to compare; no need for the square root
+    let gap = Infinity;
+    for (const e of existing) {
+      const d = (p.x - e.x) ** 2 + (p.y - e.y) ** 2;
+      if (d < gap) gap = d;
+    }
+    if (gap > bestGap) {
+      bestGap = gap;
+      best = p;
+    }
+  }
+  return best;
 }
