@@ -13,9 +13,56 @@ function getSql(): NeonQueryFunction<false, false> {
   return _sql;
 }
 
+/**
+ * Local development without a database in the cloud.
+ *
+ * The Neon driver speaks Neon's HTTP protocol, not the Postgres wire protocol,
+ * so it cannot be pointed at a Postgres on this machine. `DATABASE_URL=pglite:.pgdata`
+ * runs Postgres itself, compiled to WASM, in this process, with its data in a
+ * gitignored folder. Same SQL, same types, nothing to install or keep running.
+ *
+ * Development only, and it throws rather than degrading if it is ever reached
+ * in production: a board whose data lives in the serverless filesystem would
+ * quietly lose every rumour on it.
+ */
+const LOCAL = "pglite:";
+
+type Row = Record<string, unknown>;
+type LocalDb = { query: (text: string, params: unknown[]) => Promise<{ rows: Row[] }> };
+
+// On globalThis, not in a module variable. Next bundles this module once per
+// route, so a plain `let` gives the page and the API route separate copies:
+// two Postgres VMs over one folder, each holding its own snapshot. Writes then
+// land in one and reads come back empty from the other.
+const shared = globalThis as typeof globalThis & { __localDb?: Promise<LocalDb> };
+
+function getLocal(url: string): Promise<LocalDb> {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("pglite: is a development database. Set DATABASE_URL to a real one.");
+  }
+  if (!shared.__localDb) {
+    const dir = url.slice(LOCAL.length) || ".pgdata";
+    shared.__localDb = import("@electric-sql/pglite").then(
+      ({ PGlite }) => PGlite.create(dir) as Promise<LocalDb>
+    );
+  }
+  return shared.__localDb;
+}
+
+/** `sql\`...\`` becomes `select ... $1, $2`, which is what both drivers want. */
+async function queryLocal(url: string, strings: TemplateStringsArray, values: unknown[]) {
+  const text = strings.reduce((acc, part, i) => acc + part + (i < values.length ? `$${i + 1}` : ""), "");
+  const db = await getLocal(url);
+  const { rows } = await db.query(text, values);
+  return rows;
+}
+
 // Tagged-template passthrough so callers keep using sql`...`.
-export const sql = ((strings: TemplateStringsArray, ...values: unknown[]) =>
-  getSql()(strings, ...values)) as NeonQueryFunction<false, false>;
+export const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
+  const url = process.env.DATABASE_URL ?? "";
+  if (url.startsWith(LOCAL)) return queryLocal(url, strings, values);
+  return getSql()(strings, ...values);
+}) as NeonQueryFunction<false, false>;
 
 // ponytail: lazy idempotent schema setup instead of a migration tool. CREATE
 // ... IF NOT EXISTS is safe to run repeatedly; the promise guard means it runs

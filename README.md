@@ -55,7 +55,14 @@ nick@loosethreads:~$ npm run dev
 
 ## 🚀 Run it
 
-You need a Neon Postgres `DATABASE_URL` and an `ADMIN_SECRET`.
+You need a `DATABASE_URL` and an `ADMIN_SECRET`.
+
+For local work there is no cloud database to sign up for: set
+`DATABASE_URL=pglite:.pgdata` and the app runs Postgres itself, compiled to
+WASM, in the dev server, with its data in a gitignored `.pgdata/` folder. Same
+SQL, nothing to install, nothing left running. `rm -rf .pgdata` empties the
+board. It refuses to start in production, where a database on the serverless
+filesystem would quietly lose everything on it.
 
 Upstash and Turnstile are optional **locally only**. Because submissions publish
 immediately, those two are the entire defence in production, so the submit route
@@ -66,12 +73,12 @@ endpoint. Locally, both are skipped and everything works.
 ```bash
 git clone https://github.com/nitrimandylis/loosethreads.git
 cd loosethreads
-cp .env.example .env.local   # paste DATABASE_URL + ADMIN_SECRET
+cp .env.example .env.local   # DATABASE_URL=pglite:.pgdata + any ADMIN_SECRET
 npm install
 npm run dev
 ```
 
-The database schema creates itself on first query, no migration step and no ceremony. Visit `/` for the board and `/admin` to judge humanity after the fact.
+The database schema creates itself on first query, no migration step and no ceremony. Visit `/` for the board and `/admin` to judge humanity after the fact. `/?demo=1` puts a fixed board up with no database at all, for design work.
 
 ## 🔩 Under the hood
 
