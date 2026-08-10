@@ -17,9 +17,9 @@
 
 ### `PIN THE GOSSIP // CONNECT THE DOTS // TRUST NOBODY`
 
-*an infinite corkboard for anonymous rumors, with red string and a paranoid moderation queue*
+*an infinite corkboard for anonymous rumors, with red string and nobody on duty*
 
-![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/everything-pre__moderated-c0231f?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
+![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/moderation-after__the__fact-c0231f?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
 
 </div>
 
@@ -29,14 +29,14 @@
 
 Loose Threads is a single infinite whiteboard where anyone, anonymously, pins a gossip note into a topic region and ties it to another note with red string — the conspiracy-corkboard you've seen in every detective movie, except the suspects are celebrities, your local scene, and whoever someone decided to implicate at 2am.
 
-Nothing a stranger posts goes live the moment they post it. Every note and every connection lands in a hidden queue and waits for a human (you) to approve or reject it. The public canvas only ever renders what survived that gauntlet. Anonymity for the crowd, accountability for the board.
+Everything a stranger posts goes live the moment they post it. There is no queue and no approval step. The board had one once, and an empty board is what it got: you post a rumour, nothing appears, you close the tab. Moderation now happens *after* the fact, from `/admin`, where anything on the board can be edited in place or taken down.
 
 You can drag the notes around all you like. It won't save. Nobody else sees your tidying. The board is canonical and you are just a guest moving the furniture.
 
 ```console
 nick@loosethreads:~$ npm run dev
-[✓] canvas mounted · 0 approved notes · 0 strings
-[i] the queue is empty. so is everyone's conscience.
+[✓] canvas mounted · 0 notes · 0 strings
+[i] nobody is checking this. that is the feature.
 ```
 
 ## 🧷 The board
@@ -44,17 +44,24 @@ nick@loosethreads:~$ npm run dev
 | | feature | what it actually does |
 |---|---|---|
 | 01 | **infinite corkboard** | pan/zoom cork surface via React Flow, notes pinned as paper cards: five stocks, crooked, each one picked from its note id so the wall looks hand-assembled |
-| 02 | **red string** | drag off one pin onto another, or hit **Tie string** and tap two notes. Submitted, not drawn, until a human signs off |
-| 03 | **topic regions** | curated topics own spatial clusters; new notes auto-place near their region so the chaos stays loosely sorted |
-| 04 | **pre-moderation queue** | nothing is public until approved — the only posture that survives "anonymous + gossip + the open internet" |
-| 05 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`, public and un-moderated, because a queue for reactions is a queue nobody empties |
-| 06 | **notes age** | paper yellows and curls the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
-| 07 | **local-only drag** | rearrange the board to your heart's content — it never persists and nobody else ever sees it |
-| 08 | **no accounts** | no login, no profile, no email — just Turnstile + a per-IP rate limit standing between you and the queue |
+| 02 | **red string** | drag off one pin onto another, or hit **Tie string** and tap two notes. Ties pin to pin, and a pair can only be tied once in either direction |
+| 03 | **topic regions** | curated topics own spatial clusters. A new note is placed at whichever of 20 candidate spots sits furthest from its neighbours, so notes crowd without ever burying each other |
+| 04 | **instant publish** | no queue, no approval. It is on the board before you've let go of the button |
+| 05 | **takedown, not review** | `/admin` shows what is live and can edit it in place or remove it. Removal is soft and takes its strings with it |
+| 06 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`. One per note per browser, so nobody can sit there stamping CONFIRMED 400 times |
+| 07 | **notes age** | paper yellows the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
+| 08 | **local-only drag** | rearrange the board to your heart's content, it never persists and nobody else ever sees it |
+| 09 | **no accounts** | no login, no profile, no email. Turnstile and a per-IP rate limit are the whole gate |
 
 ## 🚀 Run it
 
-You need a Neon Postgres `DATABASE_URL` and an `ADMIN_SECRET`. The rest (Upstash rate limit, Turnstile bot check) are optional — leave them out and the app degrades gracefully, skipping that protection.
+You need a Neon Postgres `DATABASE_URL` and an `ADMIN_SECRET`.
+
+Upstash and Turnstile are optional **locally only**. Because submissions publish
+immediately, those two are the entire defence in production, so the submit route
+**fails closed**: with any of them missing, a production deploy refuses
+submissions with a 503 rather than serving an unthrottled anonymous write
+endpoint. Locally, both are skipped and everything works.
 
 ```bash
 git clone https://github.com/nitrimandylis/loosethreads.git
@@ -64,17 +71,19 @@ npm install
 npm run dev
 ```
 
-The database schema creates itself on first query — no migration step, no ceremony. Visit `/` for the board and `/admin` to judge humanity.
+The database schema creates itself on first query, no migration step and no ceremony. Visit `/` for the board and `/admin` to judge humanity after the fact.
 
 ## 🔩 Under the hood
 
 ```mermaid
 flowchart LR
     A[anonymous visitor] -->|note or red string| B[Turnstile + rate limit]
-    B --> C[(queue · status=pending)]
-    C --> F[/admin queue]
-    F -->|you approve| G[(status=approved)]
-    G --> H[public canvas]
+    B -->|unconfigured in prod| X[503 · submissions closed]
+    B --> C[(status=approved)]
+    C --> H[public canvas]
+    H -.->|you, later| F[/admin]
+    F -->|edit in place| C
+    F -->|remove| R[(status=removed)]
 ```
 
 | layer/file | path | job |
@@ -83,11 +92,12 @@ flowchart LR
 | sticky node | `src/app/sticky-node.tsx` | the pinned card, its stamps, its age |
 | paper | `src/lib/paper.ts` | which stock, tilt and pin a note gets, derived from its id |
 | aging | `src/lib/aging.ts` | note age → visual bucket |
-| submit api | `src/app/api/submit/route.ts` | validates, rate-limits, Turnstile-checks, queues notes + edges, takes reactions |
-| admin | `src/app/admin/` | secret-gated moderation queue, edit-before-publish |
+| submit api | `src/app/api/submit/route.ts` | the gate: fails closed in prod, rate-limits per action, Turnstile-checks, publishes |
+| rate limits | `src/lib/ratelimit.ts` | three buckets priced by cost: notes 5, strings 15, stamps 60, per 10 min per IP |
+| admin | `src/app/admin/` | secret-gated live board: edit in place, remove, sign out |
 | db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`, `reactions`) |
-| queries | `src/lib/queries.ts` | approved-board read + pending-queue read |
-| topics | `src/lib/topics.ts` | the curated topic list and region coordinates |
+| queries | `src/lib/queries.ts` | public board read + the moderator's live-board read |
+| topics | `src/lib/topics.ts` | the topic list, region coordinates, and collision-aware placement |
 | design system | `src/app/globals.css` | the whole visual system, documented in the header comment |
 
 Design intent lives in [`PRODUCT.md`](PRODUCT.md); the palette, paper stocks and type
