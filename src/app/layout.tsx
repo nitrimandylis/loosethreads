@@ -3,8 +3,8 @@ import { Kalam, Courier_Prime } from "next/font/google";
 import "./globals.css";
 
 // Two faces, one contrast axis: felt-tip on paper vs typed case file.
-// Self-hosted by next/font so the board looks the same on every device —
-// the old stack asked for "Bradley Hand", which only exists on macOS and
+// Self-hosted by next/font so the board looks the same on every device. The
+// old stack asked for "Bradley Hand", which only exists on macOS and
 // fell back to Comic Sans on Windows.
 const hand = Kalam({
   variable: "--font-hand",
@@ -22,7 +22,7 @@ const typewriter = Courier_Prime({
 
 export const metadata: Metadata = {
   title: "Loose Threads",
-  description: "Anonymous gossip — pin it, connect the dots, watch the threads come loose.",
+  description: "Anonymous gossip: pin it, connect the dots, watch the threads come loose.",
 };
 
 export default function RootLayout({

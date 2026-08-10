@@ -1,6 +1,6 @@
 // Per-note physical variation: which paper stock, how crooked, where the pin
 // went in. Derived from the note id so a note looks the same on every reload
-// and for every visitor — the wall is canonical, not randomised per render.
+// and for every visitor. The wall is canonical, not randomised per render.
 //
 // This used to be CSS :nth-of-type rules, which silently did nothing: React
 // Flow wraps every note in its own div, so each .sticky-note was always the

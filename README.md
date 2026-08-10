@@ -43,8 +43,8 @@ nick@loosethreads:~$ npm run dev
 
 | | feature | what it actually does |
 |---|---|---|
-| 01 | **infinite corkboard** | pan/zoom cork surface via React Flow, notes pinned as paper cards — five stocks, crooked, each one picked from its note id so the wall looks hand-assembled |
-| 02 | **red string** | drag off one pin onto another, or hit **Tie string** and tap two notes — submitted, not drawn, until a human signs off |
+| 01 | **infinite corkboard** | pan/zoom cork surface via React Flow, notes pinned as paper cards: five stocks, crooked, each one picked from its note id so the wall looks hand-assembled |
+| 02 | **red string** | drag off one pin onto another, or hit **Tie string** and tap two notes. Submitted, not drawn, until a human signs off |
 | 03 | **topic regions** | curated topics own spatial clusters; new notes auto-place near their region so the chaos stays loosely sorted |
 | 04 | **pre-moderation queue** | nothing is public until approved — the only posture that survives "anonymous + gossip + the open internet" |
 | 05 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`, public and un-moderated, because a queue for reactions is a queue nobody empties |

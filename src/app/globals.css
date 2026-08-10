@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   LOOSE THREADS — corkboard / case-file design system
+   LOOSE THREADS: corkboard / case-file design system
    ---------------------------------------------------------------------
    Scene: 1am, dark room, one desk lamp. Someone drops a link in the group
    chat and you find a wall of other people's secrets under the lamp.
@@ -25,8 +25,8 @@
      legal yellow · manila · memo · message slip · receipt blue
 
    TYPE
-     --type : Courier Prime — typed case file. Labels, buttons, chrome.
-     --hand : Kalam — felt-tip on paper. Note bodies only.
+     --type : Courier Prime, typed case file. Labels, buttons, chrome.
+     --hand : Kalam, felt-tip on paper. Note bodies only.
      Both self-hosted via next/font so the board looks the same on every
      device. Do not reintroduce a local-only stack here.
 
@@ -50,7 +50,7 @@
   --hand: var(--font-hand), "Segoe Print", "Marker Felt", cursive;
   --type: var(--font-type), "Courier New", ui-monospace, monospace;
 
-  /* semantic z-index scale — nothing gets an arbitrary 999 */
+  /* semantic z-index scale, nothing gets an arbitrary 999 */
   --z-board-chrome: 10;
   --z-panel: 20;
   --z-bar: 30;
@@ -130,7 +130,7 @@ main {
 }
 .react-flow {
   /* Layered cork: three offset fleck grids at different scales over a warm
-     base. No React Flow <Background/> here on purpose — its dot grid is the
+     base. No React Flow <Background/> here on purpose: its dot grid is the
      single loudest "this is a node editor" tell on the board. */
   background-color: var(--cork);
   background-image:
@@ -138,7 +138,7 @@ main {
     radial-gradient(rgba(141, 107, 66, 0.5) 0.7px, transparent 1px),
     radial-gradient(rgba(48, 33, 18, 0.4) 0.6px, transparent 0.9px),
     linear-gradient(125deg, var(--cork-hi), var(--cork) 52%, #5d4429);
-  /* co-prime tile sizes so the flecks never resolve into a visible grid —
+  /* co-prime tile sizes so the flecks never resolve into a visible grid,
      a regular dot lattice is exactly the node-editor look we removed */
   background-size: 23px 23px, 13px 13px, 31px 31px, 100% 100%;
   background-position: 0 0, 7px 11px, 14px 5px, 0 0;
@@ -207,7 +207,7 @@ main {
   z-index: 1;
 }
 
-/* Paper stocks — assigned per note id, see lib/paper.ts. Kept far enough
+/* Paper stocks, assigned per note id, see lib/paper.ts. Kept far enough
    apart in hue that two neighbouring notes never read as the same stock;
    all light enough that ink clears 4.5:1 even in the oldest age bucket. */
 .sticky-note.stock-0 { --paper: #fbefa8; }                                   /* legal pad */
@@ -439,7 +439,7 @@ main {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* the standing legend — what this place is, for someone who landed cold */
+/* the standing legend: what this place is, for someone who landed cold */
 .case-notice {
   position: absolute;
   left: 22px;

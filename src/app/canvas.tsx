@@ -30,7 +30,7 @@ function newestNote(notes: NoteRow[]): NoteRow | null {
 /**
  * Which notes the board should open on. Topic regions sit 1600px apart, so
  * framing every note at once puts the board at ~0.5 zoom and takes the
- * handwriting with it — the visitor lands in the void between regions.
+ * handwriting with it. The visitor lands in the void between regions.
  *
  * Desktop gets the whole region around the newest note. A phone can't fit a
  * region legibly at any zoom, so it gets the newest note alone, full size;
@@ -285,7 +285,7 @@ function CaseNotice() {
       <span className="case-notice-pin" />
       Anonymous. Pre-moderated.
       <br />
-      Move things around all you like — it never saves.
+      Move things around all you like. It never saves.
     </aside>
   );
 }
@@ -318,7 +318,7 @@ function Actions({
     });
     setBusy(false);
     if (res.ok) {
-      onPosted("Pinned to the queue — it goes up once approved.");
+      onPosted("Pinned to the queue. It goes up once approved.");
       setBody("");
       setOpen(false);
     } else {
