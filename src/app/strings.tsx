@@ -72,7 +72,9 @@ export function Strings({
         // first client render; the hit path arrives after hydration.
         const own = hydrated && edgeSecret(e.id) !== null;
         return (
-          <g key={e.id}>
+          // data-edge-id so a drag in progress can redraw this string frame
+          // by frame without waiting for a React render.
+          <g key={e.id} data-edge-id={e.id}>
             <Yarn d={d} shouldDraw={shouldDraw} />
             {own && (
               <path

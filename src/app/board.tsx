@@ -27,6 +27,7 @@ import {
   fitScale,
   clampScale,
   anchorScroll,
+  stringPath,
   FURNITURE,
 } from "@/lib/wall";
 import { mountTurnstile, getToken } from "@/lib/turnstile-client";
@@ -612,6 +613,29 @@ export default function Board({ notes: served, edges: servedEdges }: {
     return m;
   }, [notes, bounds]);
 
+  /** Mid-drag: pull the dragged note's string along with it, frame by frame.
+      Straight to the SVG, no React render; the commit at the end of the drag
+      re-renders with the same coordinates. dx/dy are board units. */
+  const onDragMove = useCallback(
+    (id: number, dx: number, dy: number) => {
+      const sur = surface.current;
+      if (!sur) return;
+      for (const e of edges) {
+        if (e.source_id !== id && e.target_id !== id) continue;
+        const a = pins.get(e.source_id);
+        const b = pins.get(e.target_id);
+        if (!a || !b) continue;
+        const a2 = e.source_id === id ? { x: a.x + dx, y: a.y + dy } : a;
+        const b2 = e.target_id === id ? { x: b.x + dx, y: b.y + dy } : b;
+        const d = stringPath(a2, b2);
+        const g = sur.querySelector(`[data-edge-id="${e.id}"]`);
+        if (!g) continue;
+        for (const p of g.querySelectorAll("path")) p.setAttribute("d", d);
+      }
+    },
+    [edges, pins]
+  );
+
   const tying = tyingFrom !== null;
 
   return (
@@ -721,6 +745,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
               settle={!initialIds.has(n.id) && landing?.note.id !== n.id}
               say={say}
               scaleOf={() => scaleRef.current}
+              onDragMove={onDragMove}
               onMoved={onMoved}
               onTakedown={(id) => setDownIds((s) => new Set(s).add(id))}
               onPick={onPick}

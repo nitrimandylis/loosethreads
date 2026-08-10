@@ -40,6 +40,7 @@ export function Note({
   settle,
   say,
   scaleOf,
+  onDragMove,
   onMoved,
   onTakedown,
   onPick,
@@ -57,6 +58,8 @@ export function Note({
   say: (message: string) => void;
   /** Current board zoom, for turning a screen drag into board coordinates. */
   scaleOf: () => number;
+  /** A drag in progress: the string tied here follows, frame by frame. */
+  onDragMove: (id: number, dx: number, dy: number) => void;
   /** A drag ended here: the browser keeps the note at (x, y) locally. */
   onMoved: (id: number, x: number, y: number) => void;
   onTakedown: (id: number) => void;
@@ -110,6 +113,7 @@ export function Note({
     grab.current!.dx = dxScreen / s;
     grab.current!.dy = dyScreen / s;
     el.style.translate = `${grab.current!.dx}px ${grab.current!.dy}px`;
+    onDragMove(note.id, grab.current!.dx, grab.current!.dy);
   };
 
   const commitMove = () => {
