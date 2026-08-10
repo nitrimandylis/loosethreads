@@ -17,7 +17,7 @@ export function Compose({
   onPinned,
   say,
 }: {
-  onPinned: (note: NoteRow, from: { x: number; y: number }) => void;
+  onPinned: (note: NoteRow, from: { x: number; y: number }, secret: string) => void;
   say: (message: string) => void;
 }) {
   const sheet = useRef<HTMLDivElement>(null);
@@ -50,7 +50,7 @@ export function Compose({
       ? { x: r.left + r.width / 2, y: r.top + r.height / 2 }
       : { x: window.innerWidth / 2, y: window.innerHeight };
 
-    onPinned(data.note as NoteRow, from);
+    onPinned(data.note as NoteRow, from, data.secret as string);
     setBody("");
     setOpen(false);
   }

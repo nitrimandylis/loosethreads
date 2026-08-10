@@ -108,6 +108,14 @@ export function ensureSchema(): Promise<void> {
       // no longer mention it. Idempotent, so it doubles as the migration.
       await sql`ALTER TABLE nodes ALTER COLUMN topic SET DEFAULT ''`;
 
+      // Ownership without accounts: every created row carries a secret the
+      // creating browser is told once. Whoever can repeat it may manage the
+      // row. Rows from before this column get a secret nobody was ever told,
+      // which is the same as unmanageable.
+      await sql`ALTER TABLE nodes ADD COLUMN IF NOT EXISTS secret UUID DEFAULT gen_random_uuid()`;
+      await sql`ALTER TABLE edges ADD COLUMN IF NOT EXISTS secret UUID DEFAULT gen_random_uuid()`;
+      await sql`ALTER TABLE reactions ADD COLUMN IF NOT EXISTS secret UUID DEFAULT gen_random_uuid()`;
+
       await sql`CREATE INDEX IF NOT EXISTS reactions_node_idx ON reactions(node_id)`;
       await sql`CREATE INDEX IF NOT EXISTS nodes_status_idx ON nodes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS edges_status_idx ON edges(status)`;

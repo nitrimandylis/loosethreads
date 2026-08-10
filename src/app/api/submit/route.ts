@@ -65,8 +65,13 @@ export async function POST(req: Request) {
     if (ok.length !== 1) {
       return NextResponse.json({ error: "No such note" }, { status: 400 });
     }
-    await sql`INSERT INTO reactions (node_id, kind) VALUES (${nodeId}, ${data.kind})`;
-    return NextResponse.json({ ok: true });
+    const [stamp] = (await sql`
+      INSERT INTO reactions (node_id, kind) VALUES (${nodeId}, ${data.kind})
+      RETURNING id, secret
+    `) as { id: number; secret: string }[];
+    // The secret is what lets this browser, and only this browser, take the
+    // stamp back later.
+    return NextResponse.json({ ok: true, id: stamp.id, secret: stamp.secret });
   }
 
   // ---- String between two notes ----
@@ -87,14 +92,24 @@ export async function POST(req: Request) {
     if (ok[0].n !== 2) {
       return NextResponse.json({ error: "Both notes must exist" }, { status: 400 });
     }
-    // Tying the same two notes again is a no-op, not an error: the string is
-    // already there. edges_pair_idx treats (a,b) and (b,a) as one pair.
-    await sql`
+    // Tying an existing pair is a no-op visually, but DO UPDATE instead of DO
+    // NOTHING so a string that was untied comes back up (revived) when tied
+    // again. edges_pair_idx treats (a,b) and (b,a) as one pair. RETURNING
+    // fires for both insert and revive; xmax = 0 only for a genuinely new
+    // row, and only a new row's secret belongs to this visitor. Handing back
+    // an existing string's secret would let anyone claim it.
+    const [edge] = (await sql`
       INSERT INTO edges (source_id, target_id, status)
       VALUES (${source}, ${target}, 'approved')
-      ON CONFLICT DO NOTHING
-    `;
-    return NextResponse.json({ ok: true });
+      ON CONFLICT ((LEAST(source_id, target_id)), (GREATEST(source_id, target_id)))
+      DO UPDATE SET status = 'approved'
+      RETURNING id, source_id, target_id, secret, (xmax = 0) AS created
+    `) as { id: number; source_id: number; target_id: number; secret: string; created: boolean }[];
+    return NextResponse.json({
+      ok: true,
+      edge: { id: edge.id, source_id: edge.source_id, target_id: edge.target_id },
+      secret: edge.created ? edge.secret : null,
+    });
   }
 
   // ---- Note ----
@@ -123,10 +138,16 @@ export async function POST(req: Request) {
   const [note] = (await sql`
     INSERT INTO nodes (body, x, y, status)
     VALUES (${body}, ${x}, ${y}, 'approved')
-    RETURNING id, body, x, y, created_at
-  `) as { id: number }[];
+    RETURNING id, body, x, y, created_at, secret
+  `) as { id: number; body: string; x: number; y: number; created_at: string; secret: string }[];
 
-  return NextResponse.json({ ok: true, note: { ...note, reactions: {} } });
+  // The secret rides outside the note object: the note is board data, the
+  // secret is a proof for this browser only.
+  return NextResponse.json({
+    ok: true,
+    note: { id: note.id, body: note.body, x: note.x, y: note.y, created_at: note.created_at, reactions: {} },
+    secret: note.secret,
+  });
 }
 
 function tooMany() {

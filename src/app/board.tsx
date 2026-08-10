@@ -22,6 +22,7 @@ import {
   FURNITURE,
 } from "@/lib/wall";
 import { mountTurnstile, getToken } from "@/lib/turnstile-client";
+import { rememberNote, rememberEdge } from "@/lib/mine";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
 const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -76,8 +77,17 @@ export default function Board({ notes: served, edges: servedEdges }: {
   }, [served, addedNotes]);
 
   const edges = useMemo(() => {
+    // One string per pair, whichever list it came from: re-tying an existing
+    // pair answers with the same edge id, so the added list can repeat itself.
     const seen = new Set(servedEdges.map(pairKey));
-    return [...servedEdges, ...addedEdges.filter((e) => !seen.has(pairKey(e)))];
+    const out = [...servedEdges];
+    for (const e of addedEdges) {
+      const k = pairKey(e);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(e);
+    }
+    return out;
   }, [servedEdges, addedEdges]);
 
   const bounds = useMemo(() => wallBounds(notes), [notes]);
@@ -444,15 +454,16 @@ export default function Board({ notes: served, edges: servedEdges }: {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type: "edge", sourceId: a, targetId: b, turnstileToken: token }),
       });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        say(e.error || "That string did not hold.");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.edge) {
+        say(data.error || "That string did not hold.");
         return;
       }
-      // The server does not hand back an edge id, so this one carries a
-      // negative placeholder until the next poll replaces it. Strings are
-      // de-duplicated by their pair, not their id, so it never doubles up.
-      setAddedEdges((es) => [...es, { id: -Date.now(), source_id: a, target_id: b }]);
+      // Strings are de-duplicated by their pair, so re-tying an existing one
+      // never doubles up. A secret only comes back for a genuinely new
+      // string; it is what lets this browser untie it later.
+      setAddedEdges((es) => [...es, data.edge as EdgeRow]);
+      if (data.secret) rememberEdge(data.edge.id, data.secret);
       say("Tied.");
     },
     [say]
@@ -695,7 +706,8 @@ export default function Board({ notes: served, edges: servedEdges }: {
       </button>
 
       <Compose
-        onPinned={(note, from) => {
+        onPinned={(note, from, secret) => {
+          rememberNote(note.id, secret);
           returnTo.current = { s: scaleRef.current, focus: centreOfView() };
           setAddedNotes((ns) => [...ns, note]);
           setLanding({ note, from });

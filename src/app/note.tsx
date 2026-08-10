@@ -12,6 +12,7 @@ import {
   rememberStamp,
   forgetStamp,
 } from "@/lib/stamped";
+import { rememberStampProof } from "@/lib/mine";
 import type { NoteRow } from "@/lib/queries";
 
 /** Stamps are ink on paper, and 👀 needs a class name a stylesheet can hold. */
@@ -66,19 +67,22 @@ export function Note({
     setCounts((c) => ({ ...c, [kind]: (c[kind] ?? 0) + 1 })); // optimistic
     rememberStamp(note.id, kind);
 
-    const ok = await fetch("/api/submit", {
+    const data = await fetch("/api/submit", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ type: "reaction", nodeId: note.id, kind }),
     })
-      .then((r) => r.ok)
-      .catch(() => false);
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
 
     // Don't leave a count showing a vote the server never took.
-    if (!ok) {
+    if (!data) {
       setCounts((c) => ({ ...c, [kind]: Math.max(0, (c[kind] ?? 1) - 1) }));
       forgetStamp(note.id, kind);
+      return;
     }
+    // The proof is what lets this browser take the stamp back later.
+    rememberStampProof(note.id, kind, data.id, data.secret);
   }
 
   const classes = [
