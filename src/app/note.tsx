@@ -12,7 +12,8 @@ import {
   rememberStamp,
   forgetStamp,
 } from "@/lib/stamped";
-import { rememberStampProof } from "@/lib/mine";
+import { rememberStampProof, noteSecret, forgetNote } from "@/lib/mine";
+import { MAX_BODY } from "@/lib/limits";
 import type { NoteRow } from "@/lib/queries";
 
 /** Stamps are ink on paper, and 👀 needs a class name a stylesheet can hold. */
@@ -31,6 +32,8 @@ export function Note({
   tying,
   isSource,
   settle,
+  say,
+  onTakedown,
   onPick,
   onTie,
 }: {
@@ -43,10 +46,19 @@ export function Note({
   /** True when this note arrived after the board painted (someone else's
       rumour landing mid-read): it settles in instead of popping. */
   settle: boolean;
+  say: (message: string) => void;
+  onTakedown: (id: number) => void;
   onPick: (id: number) => void;
   onTie: (id: number) => void;
 }) {
   const [counts, setCounts] = useState<Record<string, number>>(note.reactions ?? {});
+  // Rewording your own note happens on the note itself: the body becomes a
+  // textarea on the same paper. The reworded text shows immediately and the
+  // next poll serves the same thing back.
+  const [editing, setEditing] = useState(false);
+  const [reworded, setReworded] = useState<string | null>(null);
+  const body = reworded ?? note.body;
+  const secret = noteSecret(note.id);
   const [settling, setSettling] = useState(settle);
   useEffect(() => {
     if (!settling) return;
@@ -102,7 +114,7 @@ export function Note({
       className={classes}
       data-note-id={note.id}
       tabIndex={0}
-      aria-label={tying ? `Tie string to: ${note.body}` : note.body}
+      aria-label={tying ? `Tie string to: ${body}` : body}
       style={
         {
           left,
@@ -125,7 +137,40 @@ export function Note({
       <span className="paper" aria-hidden="true" />
       <span className="pin" aria-hidden="true" />
 
-      <p className="body">{note.body}</p>
+      {editing ? (
+        <textarea
+          className="body body-edit"
+          defaultValue={body}
+          maxLength={MAX_BODY}
+          autoFocus
+          aria-label="Reword the rumour"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.currentTarget.value = body; // put it back, then blur saves nothing
+              setEditing(false);
+            }
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={async (e) => {
+            const next = e.target.value.trim();
+            setEditing(false);
+            if (!next || next === body || !secret) return;
+            const res = await fetch("/api/manage", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ action: "reword", id: note.id, secret, body: next }),
+            }).catch(() => null);
+            if (res?.ok) setReworded(next);
+            else say("The reword did not take.");
+          }}
+        />
+      ) : (
+        <p className="body">{body}</p>
+      )}
 
       {/* Landed stamps are impressions, not buttons: at rest a note carries no
           UI at all, so a screenshot of the wall has none in it either. */}
@@ -140,7 +185,7 @@ export function Note({
         </p>
       )}
 
-      {selected && !tying && (
+      {selected && !tying && !editing && (
         <div className="tray" onClick={(e) => e.stopPropagation()}>
           {STAMPS.map((s) => (
             <button
@@ -156,6 +201,34 @@ export function Note({
           <button className="tray-tie" onClick={() => onTie(note.id)}>
             Tie string
           </button>
+          {/* Yours to manage, proven by the secret this browser was handed
+              when it pinned the note. Nobody else sees these. */}
+          {secret && (
+            <>
+              <button
+                className="tray-own"
+                onClick={async () => {
+                  const res = await fetch("/api/manage", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ action: "takedown", id: note.id, secret }),
+                  }).catch(() => null);
+                  if (res?.ok) {
+                    forgetNote(note.id);
+                    onTakedown(note.id);
+                    say("Taken down.");
+                  } else {
+                    say("That would not come down.");
+                  }
+                }}
+              >
+                Take down
+              </button>
+              <button className="tray-own" onClick={() => setEditing(true)}>
+                Reword
+              </button>
+            </>
+          )}
         </div>
       )}
     </article>

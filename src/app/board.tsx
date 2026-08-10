@@ -64,6 +64,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
   const [picked, setPicked] = useState<number | null>(null);
   const [tyingFrom, setTyingFrom] = useState<number | null>(null);
+  // Notes this visitor took down (their own): hidden now, gone from the
+  // server on the next poll anyway.
+  const [downIds, setDownIds] = useState<Set<number>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
   const [wide, setWide] = useState(false);
   const [scale, setScale] = useState(1);
@@ -73,8 +76,10 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
   const notes = useMemo(() => {
     const seen = new Set(served.map((n) => n.id));
-    return [...served, ...addedNotes.filter((n) => !seen.has(n.id))];
-  }, [served, addedNotes]);
+    return [...served, ...addedNotes.filter((n) => !seen.has(n.id))].filter(
+      (n) => !downIds.has(n.id)
+    );
+  }, [served, addedNotes, downIds]);
 
   const edges = useMemo(() => {
     // One string per pair, whichever list it came from: re-tying an existing
@@ -87,8 +92,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
       seen.add(k);
       out.push(e);
     }
-    return out;
-  }, [servedEdges, addedEdges]);
+    // A downed note takes its strings with it, same as the server join does.
+    return out.filter((e) => !downIds.has(e.source_id) && !downIds.has(e.target_id));
+  }, [servedEdges, addedEdges, downIds]);
 
   const bounds = useMemo(() => wallBounds(notes), [notes]);
 
@@ -673,6 +679,8 @@ export default function Board({ notes: served, edges: servedEdges }: {
               tying={tying}
               isSource={tyingFrom === n.id}
               settle={hasPainted() && landing?.note.id !== n.id}
+              say={say}
+              onTakedown={(id) => setDownIds((s) => new Set(s).add(id))}
               onPick={onPick}
               onTie={(id) => {
                 setTyingFrom(id);
