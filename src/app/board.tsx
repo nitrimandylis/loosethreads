@@ -22,7 +22,7 @@ import {
   FURNITURE,
 } from "@/lib/wall";
 import { mountTurnstile, getToken } from "@/lib/turnstile-client";
-import { rememberNote, rememberEdge } from "@/lib/mine";
+import { rememberNote, rememberEdge, edgeSecret, forgetEdge } from "@/lib/mine";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
 const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -67,6 +67,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
   // Notes this visitor took down (their own): hidden now, gone from the
   // server on the next poll anyway.
   const [downIds, setDownIds] = useState<Set<number>>(new Set());
+  // A string of yours you tapped (the untie chip shows), and strings untied.
+  const [pickedString, setPickedString] = useState<number | null>(null);
+  const [cutIds, setCutIds] = useState<Set<number>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
   const [wide, setWide] = useState(false);
   const [scale, setScale] = useState(1);
@@ -92,9 +95,12 @@ export default function Board({ notes: served, edges: servedEdges }: {
       seen.add(k);
       out.push(e);
     }
-    // A downed note takes its strings with it, same as the server join does.
-    return out.filter((e) => !downIds.has(e.source_id) && !downIds.has(e.target_id));
-  }, [servedEdges, addedEdges, downIds]);
+    // A downed note takes its strings with it, same as the server join does;
+    // an untied string just comes off.
+    return out.filter(
+      (e) => !downIds.has(e.source_id) && !downIds.has(e.target_id) && !cutIds.has(e.id)
+    );
+  }, [servedEdges, addedEdges, downIds, cutIds]);
 
   const bounds = useMemo(() => wallBounds(notes), [notes]);
 
@@ -288,6 +294,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
       if (e.key !== "Escape") return;
       setTyingFrom(null);
       setPicked(null);
+      setPickedString(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -477,6 +484,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
   const onPick = useCallback(
     (id: number) => {
+      setPickedString(null); // picking a note puts the string down
       if (tyingFrom !== null) {
         if (tyingFrom !== id) tie(tyingFrom, id);
         setTyingFrom(null);
@@ -501,7 +509,10 @@ export default function Board({ notes: served, edges: servedEdges }: {
   } | null>(null);
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if ((e.target as HTMLElement).closest("article, aside, button, a, textarea, input")) return;
+    // .yarn-hit is in the list because capturing the pointer here would
+    // retarget the click away from the string's own handler.
+    if ((e.target as HTMLElement).closest("article, aside, button, a, textarea, input, .yarn-hit"))
+      return;
     const el = scroller.current;
     if (!el) return;
     // Drag-to-pan is a mouse gesture; touch already has momentum scrolling.
@@ -529,6 +540,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
     if (d && !d.moved) {
       setPicked(null);
       setTyingFrom(null);
+      setPickedString(null);
     }
   };
 
@@ -697,7 +709,50 @@ export default function Board({ notes: served, edges: servedEdges }: {
             originX={bounds.x}
             originY={bounds.y}
             shouldDraw={hasPainted}
+            onPickString={setPickedString}
           />
+
+          {/* The untie chip hangs at the picked string's droop. Only string
+              this browser tied is pickable, so the chip always has a secret. */}
+          {pickedString !== null &&
+            (() => {
+              const e = edges.find((x) => x.id === pickedString);
+              if (!e) return null;
+              const a = pins.get(e.source_id);
+              const b = pins.get(e.target_id);
+              if (!a || !b) return null;
+              const len = Math.hypot(b.x - a.x, b.y - a.y);
+              const mid = {
+                x: (a.x + b.x) / 2,
+                y: (a.y + b.y) / 2 + Math.min(62, len * 0.075),
+              };
+              return (
+                <button
+                  className="untie-chip"
+                  style={{ left: mid.x, top: mid.y }}
+                  onClick={async (ev) => {
+                    ev.stopPropagation();
+                    const secret = edgeSecret(e.id);
+                    setPickedString(null);
+                    if (!secret) return;
+                    const res = await fetch("/api/manage", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ action: "untie", id: e.id, secret }),
+                    }).catch(() => null);
+                    if (res?.ok) {
+                      forgetEdge(e.id);
+                      setCutIds((s) => new Set(s).add(e.id));
+                      say("Untied.");
+                    } else {
+                      say("That string is staying up.");
+                    }
+                  }}
+                >
+                  Untie
+                </button>
+              );
+            })()}
           </div>
         </div>
       </div>

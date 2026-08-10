@@ -760,6 +760,39 @@ main {
   filter: drop-shadow(0 0 6px rgba(192, 35, 31, 0.9));
 }
 
+/* An invisible fat stroke over string this browser tied, so a fingertip can
+   find a 3px piece of yarn. Everything else in the svg stays inert. */
+.yarn-hit {
+  pointer-events: stroke;
+  stroke: transparent;
+  stroke-width: 22;
+  fill: none;
+  cursor: pointer;
+}
+
+/* The untie chip hangs at the string's droop, counter-scaled like the tray
+   so it is a real target however far out the board is. */
+.untie-chip {
+  position: absolute;
+  z-index: var(--z-picked);
+  transform: translate(-50%, -50%) scale(var(--inv, 1));
+  min-height: 36px;
+  padding: 8px 12px;
+  background: #140d06;
+  border: 1px solid var(--panel-edge);
+  border-radius: 4px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+  color: #ffe3e0;
+  font-family: var(--type);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+.untie-chip:hover {
+  color: #fff;
+}
+
 /* =====================================================================
    RED STRING
    Three strokes: cast shadow, the yarn, and the lit top edge. It sags,

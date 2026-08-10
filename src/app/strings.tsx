@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { animate, svg } from "animejs";
 import { stringPath, furnitureStrings } from "@/lib/wall";
+import { edgeSecret } from "@/lib/mine";
 import type { EdgeRow } from "@/lib/queries";
 
 type Pin = { x: number; y: number };
@@ -25,6 +26,7 @@ export function Strings({
   originX,
   originY,
   shouldDraw,
+  onPickString,
 }: {
   edges: EdgeRow[];
   pins: Map<number, Pin>;
@@ -35,7 +37,15 @@ export function Strings({
   originY: number;
   /** Called when a string mounts: true once the board has painted at least once. */
   shouldDraw: () => boolean;
+  /** Tapping a string this browser tied picks it (to untie). */
+  onPickString: (id: number) => void;
 }) {
+  // Ownership lives in localStorage, which the server render cannot see, so
+  // the first client render must match it: hit paths only mount after
+  // hydration. Same idea as the stamp memory's server snapshot.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
   return (
     <svg className="strings" width={width} height={height} aria-hidden="true">
       {/* Wall dressing: string between the headings, there before anyone
@@ -51,7 +61,27 @@ export function Strings({
         const a = pins.get(e.source_id);
         const b = pins.get(e.target_id);
         if (!a || !b) return null; // an end came down; so does the string
-        return <Yarn key={e.id} d={stringPath(a, b)} shouldDraw={shouldDraw} />;
+        const d = stringPath(a, b);
+        // Only string this browser tied gets a click surface: the wall must
+        // not grow a click surface it mostly cannot honour. The window check
+        // keeps the server render (which has no localStorage) matching the
+        // first client render; the hit path arrives after hydration.
+        const own = hydrated && edgeSecret(e.id) !== null;
+        return (
+          <g key={e.id}>
+            <Yarn d={d} shouldDraw={shouldDraw} />
+            {own && (
+              <path
+                className="yarn-hit"
+                d={d}
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onPickString(e.id);
+                }}
+              />
+            )}
+          </g>
+        );
       })}
     </svg>
   );
