@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { animate } from "animejs";
 import { Note } from "./note";
@@ -82,6 +82,20 @@ export default function Board({ notes: served, edges: servedEdges }: {
     boundsRef.current = bounds;
     scaleRef.current = scale;
   });
+
+  // A new note can extend the wall past its old left/top edge. Everything is
+  // positioned relative to bounds, so when the origin moves, the whole wall
+  // would jump under the reader; moving the scroll by the same amount cancels
+  // it out. Layout effect so it happens before the browser paints the shift.
+  const prevBounds = useRef(bounds);
+  useLayoutEffect(() => {
+    const prev = prevBounds.current;
+    prevBounds.current = bounds;
+    const el = scroller.current;
+    if (!el || (prev.x === bounds.x && prev.y === bounds.y)) return;
+    el.scrollLeft += (prev.x - bounds.x) * scaleRef.current;
+    el.scrollTop += (prev.y - bounds.y) * scaleRef.current;
+  }, [bounds]);
 
   /** Read in an effect, never during render: has the board painted once? */
   const hasPainted = useCallback(() => painted.current, []);
