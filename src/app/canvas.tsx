@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ReactFlow,
   useNodesState,
@@ -120,9 +121,16 @@ export default function Canvas({ notes, edges }: { notes: NoteRow[]; edges: Edge
       })
         .then((r) => r.ok)
         .catch(() => false);
-      // A string left on the board after a failed submit reads as "sent". Take it back.
-      if (!ok) setRfEdges((eds) => eds.filter((e) => e.id !== optimisticId));
-      say(ok ? "String submitted for review." : "Could not submit that string.");
+      // A string left on the board after a failed submit reads as "tied". Take
+      // it back. On success it's real, so drop the dashed pending treatment.
+      setRfEdges((eds) =>
+        ok
+          ? eds.map((e) =>
+              e.id === optimisticId ? { ...e, style: { stroke: RED, strokeWidth: 3 } } : e
+            )
+          : eds.filter((e) => e.id !== optimisticId)
+      );
+      say(ok ? "Tied." : "Could not tie that string.");
     },
     [setRfEdges, say]
   );
@@ -240,7 +248,23 @@ function InitialView({ notes }: { notes: NoteRow[] }) {
   useEffect(() => {
     if (!measured || framed.current) return;
     framed.current = true;
-    fitView(viewFor(notes, isNarrow()));
+
+    // Wait for the handwriting to load before framing. The fonts load with
+    // display:swap, so measuring now would use fallback metrics; when Kalam
+    // arrives the notes reflow taller and the board is left framed around the
+    // wrong bounds, clipping the top of the tallest note.
+    let cancelled = false;
+    const frame = () => {
+      if (!cancelled) fitView(viewFor(notes, isNarrow()));
+    };
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(frame);
+    } else {
+      frame();
+    }
+    return () => {
+      cancelled = true;
+    };
   }, [measured, notes, fitView]);
 
   return null;
@@ -261,7 +285,9 @@ function Recenter({ notes }: { notes: NoteRow[] }) {
   );
 }
 
-/** Nothing approved yet. Still has to be worth a screenshot. */
+const REPO = "https://github.com/nitrimandylis/loosethreads";
+
+/** Nothing on the board yet. Still has to be worth a screenshot. */
 function EmptyBoard() {
   return (
     <div className="empty-board">
@@ -269,8 +295,8 @@ function EmptyBoard() {
         <div className="pin" />
         <h2>Case file: open</h2>
         <p>
-          Nothing has been pinned to this board yet. Anyone can add a rumour, anonymously.
-          Nothing goes up until a human approves it.
+          Nothing has been pinned to this board yet. Anyone can add a rumour, anonymously, and
+          it goes up the second they do.
         </p>
         <p className="case-foot">Nobody has talked yet. Be the first.</p>
       </div>
@@ -278,14 +304,20 @@ function EmptyBoard() {
   );
 }
 
-/** Permanent legend, so a stranger who lands cold knows the rules. */
+/** Permanent legend, so a stranger who lands cold knows what this place is. */
 function CaseNotice() {
   return (
     <aside className="case-notice">
       <span className="case-notice-pin" />
-      Anonymous. Pre-moderated.
+      <strong>NOBODY IS CHECKING THIS.</strong>
+      <br />
+      There is no queue and no moderator on duty. There is only the board.
       <br />
       Move things around all you like. It never saves.
+      <br />
+      <a href={REPO} target="_blank" rel="noreferrer noopener">
+        Grievances
+      </a>
     </aside>
   );
 }
@@ -301,6 +333,7 @@ function Actions({
   onTieString: () => void;
   onPosted: (msg: string) => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
   const [topic, setTopic] = useState(TOPICS[0].id);
@@ -318,9 +351,12 @@ function Actions({
     });
     setBusy(false);
     if (res.ok) {
-      onPosted("Pinned to the queue. It goes up once approved.");
+      onPosted("Pinned. It is on the board.");
       setBody("");
       setOpen(false);
+      // It published immediately, so the board the visitor is looking at is
+      // already out of date. Pull it in rather than making them reload.
+      router.refresh();
     } else {
       const e = await res.json().catch(() => ({ error: "Failed" }));
       onPosted(e.error || "Failed to submit.");
@@ -373,7 +409,7 @@ function Actions({
       <button className="submit-btn" disabled={busy || !body.trim()} onClick={submit}>
         {busy ? "Pinning…" : "Pin it"}
       </button>
-      <p className="hint">Anonymous. A human reads it before anyone else does.</p>
+      <p className="hint">Anonymous, and public the moment you post it.</p>
     </div>
   );
 }

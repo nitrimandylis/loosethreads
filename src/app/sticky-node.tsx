@@ -1,10 +1,18 @@
 "use client";
 
-import { useContext, useState } from "react";
+import { useContext, useState, useSyncExternalStore } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { STAMPS } from "@/lib/reactions";
 import { ageBucket } from "@/lib/aging";
 import { paperFor } from "@/lib/paper";
+import {
+  subscribe,
+  getStamped,
+  getServerStamped,
+  isStamped,
+  rememberStamp,
+  forgetStamp,
+} from "@/lib/stamped";
 import { StringMode } from "./canvas";
 
 type StickyData = {
@@ -20,6 +28,9 @@ export function StickyNode({ data }: NodeProps) {
   const [showAll, setShowAll] = useState(false);
   const string = useContext(StringMode);
 
+  const stamped = useSyncExternalStore(subscribe, getStamped, getServerStamped);
+  const mine = (kind: string) => isStamped(stamped, d.id, kind);
+
   const age = ageBucket(d.createdAt);
   const paper = paperFor(d.id);
   const earned = STAMPS.filter((s) => counts[s]);
@@ -27,7 +38,10 @@ export function StickyNode({ data }: NodeProps) {
   const visible = showAll ? STAMPS : earned;
 
   async function react(kind: string) {
+    if (mine(kind)) return;
     setCounts((c) => ({ ...c, [kind]: (c[kind] ?? 0) + 1 })); // optimistic
+    rememberStamp(d.id, kind);
+
     const ok = await fetch("/api/submit", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -35,8 +49,12 @@ export function StickyNode({ data }: NodeProps) {
     })
       .then((r) => r.ok)
       .catch(() => false);
+
     // Don't leave a count showing a vote the server never took.
-    if (!ok) setCounts((c) => ({ ...c, [kind]: Math.max(0, (c[kind] ?? 1) - 1) }));
+    if (!ok) {
+      setCounts((c) => ({ ...c, [kind]: Math.max(0, (c[kind] ?? 1) - 1) }));
+      forgetStamp(d.id, kind);
+    }
   }
 
   const classes = [
@@ -73,9 +91,16 @@ export function StickyNode({ data }: NodeProps) {
         {visible.map((s) => (
           <button
             key={s}
-            className="stamp"
+            className={`stamp${mine(s) ? " stamp-mine" : ""}`}
             onClick={() => react(s)}
-            aria-label={counts[s] ? `${s}, ${counts[s]} so far` : s}
+            disabled={mine(s)}
+            aria-label={
+              mine(s)
+                ? `${s}, ${counts[s] ?? 1} so far, including yours`
+                : counts[s]
+                  ? `${s}, ${counts[s]} so far`
+                  : s
+            }
           >
             <span className="stamp-label">{s}</span>
             {counts[s] ? <span className="stamp-n">{counts[s]}</span> : null}

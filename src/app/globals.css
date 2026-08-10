@@ -403,6 +403,15 @@ main {
   outline: 2px solid var(--red-string);
   outline-offset: 1px;
 }
+/* already stamped by this browser: reads as pressed, not as broken */
+.stamp-mine {
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ink) 60%, transparent);
+  cursor: default;
+}
+.stamp-mine:hover {
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+}
 .stamp-more {
   transform: rotate(1deg);
   padding: 3px 9px;
@@ -454,7 +463,25 @@ main {
   line-height: 1.65;
   transform: rotate(-1.2deg);
   filter: drop-shadow(3px 5px 9px rgba(15, 9, 2, 0.5));
+  /* the card itself must not eat board drags; the link inside re-enables */
   pointer-events: none;
+}
+.case-notice strong {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.case-notice a {
+  display: inline-block;
+  margin-top: 6px;
+  color: #8a1b17;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  pointer-events: auto;
+}
+.case-notice a:hover {
+  color: var(--red-string);
 }
 .case-notice-pin {
   position: absolute;
@@ -842,6 +869,43 @@ main {
   color: #fbf5ea;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 6px rgba(0, 0, 0, 0.5);
 }
+.admin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.admin-note {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--panel-ink-dim);
+  max-width: 60ch;
+}
+.signout {
+  padding: 9px 16px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--panel-ink-dim);
+  font-family: var(--type);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+.signout:hover {
+  color: var(--panel-ink);
+  border-color: var(--panel-ink-dim);
+}
+/* how long a note has been public, shown next to its topic */
+.qage {
+  font-family: var(--type);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: rgba(42, 32, 23, 0.6);
+}
 .login {
   display: flex;
   flex-direction: column;
@@ -934,6 +998,10 @@ main {
   transform: translateY(-3px);
 }
 .sticky-note.sticky-preview .qmeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
 }
 .sticky-note.sticky-preview .tag {

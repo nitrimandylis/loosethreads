@@ -20,9 +20,24 @@ const typewriter = Courier_Prime({
   display: "swap",
 });
 
+// The link gets pasted into group chats, so the preview card is the first
+// thing most people ever see of this. opengraph-image.png next to this file is
+// picked up by convention; metadataBase makes it resolve to an absolute URL.
+const site = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(site),
   title: "Loose Threads",
   description: "Anonymous gossip: pin it, connect the dots, watch the threads come loose.",
+  openGraph: {
+    type: "website",
+    siteName: "Loose Threads",
+    title: "Loose Threads",
+    description: "An infinite corkboard of anonymous rumours, tied together with red string.",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
