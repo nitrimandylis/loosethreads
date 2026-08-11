@@ -90,6 +90,19 @@ export function place(
   return best ?? fallback;
 }
 
+/**
+ * A stand-in for Math.random that always deals the same hand. Anything that
+ * has to lay out the same wall twice, the demo board and the seed script,
+ * passes one of these to place() instead of leaving it to chance.
+ */
+export function seeded(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) % 2147483648;
+    return s / 2147483648;
+  };
+}
+
 /** How far out the wall reaches for a given number of notes, for layout. */
 export function wallRadius(count: number): { x: number; y: number } {
   const r = SPREAD * Math.sqrt(Math.max(count, 1));

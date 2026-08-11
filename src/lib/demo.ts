@@ -3,7 +3,7 @@
 // preview image, so what you see here is what gets pasted into a group chat.
 
 import type { NoteRow, EdgeRow } from "./queries.ts";
-import { place, type Point } from "./placement.ts";
+import { place, seeded, type Point } from "./placement.ts";
 import { FURNITURE } from "./wall.ts";
 
 const AGES = [2, 90, 800, 26, 300]; // hours old, to show the aging ramp
@@ -15,16 +15,6 @@ const BODIES = [
   "she has never once paid for her own coffee and I have receipts",
   "they are not brothers",
 ];
-
-// Deterministic stand-in for Math.random, so the demo board is the same board
-// every time: the link preview is shot from it.
-function seeded(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 1103515245 + 12345) % 2147483648;
-    return s / 2147483648;
-  };
-}
 
 const REACTIONS: Record<string, number>[] = [
   { CONFIRMED: 3, "👀": 7 },

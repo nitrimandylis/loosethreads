@@ -21,6 +21,10 @@
 
 ![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow,_no_chrome-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/moderation-after__the__fact-c0231f?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
 
+![the board](.github/assets/board.jpg)
+
+<sub>the seeded demo board · `npm run seed` rebuilds it exactly</sub>
+
 </div>
 
 ---
@@ -77,10 +81,20 @@ git clone https://github.com/nitrimandylis/loosethreads.git
 cd loosethreads
 cp .env.example .env.local   # DATABASE_URL=pglite:.pgdata + any ADMIN_SECRET
 npm install
+npm run seed                 # optional: the board in the screenshot above
 npm run dev
 ```
 
 The database schema creates itself on first query, no migration step and no ceremony. Visit `/` for the board and `/admin` to judge humanity after the fact. `/?demo=1` puts a fixed board up with no database at all, for design work.
+
+`npm run seed` wipes `.pgdata` and rebuilds the sixteen-note board at the top of
+this README: one night reconstructed by people who were not all in the room,
+twenty strings, and the stamps the argument collected. Positions come from the
+real placer off a fixed seed and ages are relative to when you run it, so the
+same wall comes back every time and stays re-shootable when the design moves.
+Everything it writes is ordinary board data, so you can drag it, tie it, stamp
+it and take it down like anything else. Stop the dev server first: two Postgres
+VMs over one folder is one too many.
 
 ## 🔩 Under the hood
 
@@ -117,6 +131,7 @@ flowchart LR
 | queries | `src/lib/queries.ts` | public board read + the moderator's live-board read |
 | placement | `src/lib/placement.ts` | where a new note lands: a wall that grows as √n, keeping clear of what is already up |
 | demo board | `src/lib/demo.ts` | `/?demo=1` in development: a fixed board with no database, for design work and for re-shooting the link preview |
+| seeded board | `scripts/seed.ts` | `npm run seed`: the sixteen-note story at the top of this README, written into `.pgdata` as ordinary board data |
 | design system | `src/app/globals.css` | the whole visual system, documented in the header comment |
 
 Design intent lives in [`PRODUCT.md`](PRODUCT.md); the palette, paper stocks and type
