@@ -1,7 +1,7 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
 // ponytail: lazy client so importing this module (e.g. during `next build`)
-// doesn't require DATABASE_URL — it's only needed when a query actually runs.
+// doesn't require DATABASE_URL; it's only needed when a query actually runs.
 let _sql: NeonQueryFunction<false, false> | null = null;
 
 function getSql(): NeonQueryFunction<false, false> {
@@ -150,7 +150,7 @@ export function ensureSchema(): Promise<void> {
       } catch (err) {
         // Concurrent instances can race CREATE ... IF NOT EXISTS at the catalog
         // level (Postgres 23505 on the seq/index): if another instance won, the
-        // schema now exists — treat as success. Any other failure must NOT poison
+        // schema now exists, so treat as success. Any other failure must NOT poison
         // the cached promise, so clear it and rethrow so the next call retries.
         if ((err as { code?: string })?.code !== "23505") {
           ready = null;

@@ -17,7 +17,7 @@
 
 ### `PIN THE GOSSIP // CONNECT THE DOTS // TRUST NOBODY`
 
-*an infinite corkboard for anonymous rumors, with red string and nobody on duty*
+*an infinite corkboard for anonymous rumours, with red string and nobody on duty*
 
 ![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow,_no_chrome-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/moderation-after__the__fact-c0231f?style=flat-square&labelColor=111111) ![services](https://img.shields.io/badge/services-1_(postgres)-000000?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
 
@@ -31,7 +31,7 @@
 
 ## 🧵 What is this
 
-Loose Threads is one corkboard where anyone, anonymously, pins a gossip note and ties it to another note with red string — the conspiracy wall you've seen in every detective movie, except the suspects are celebrities, your local scene, and whoever someone decided to implicate at 2am.
+Loose Threads is one corkboard where anyone, anonymously, pins a gossip note and ties it to another note with red string: the conspiracy wall you've seen in every detective movie, except the suspects are celebrities, your local scene, and whoever someone decided to implicate at 2am.
 
 Everything a stranger posts goes live the moment they post it. There is no queue and no approval step. The board had one once, and an empty board is what it got: you post a rumour, nothing appears, you close the tab. Moderation now happens *after* the fact, from `/admin`, where anything on the board can be edited in place or taken down.
 
@@ -133,6 +133,8 @@ flowchart LR
 | placement | `src/lib/placement.ts` | where a new note lands: a wall that grows as √n, keeping clear of what is already up |
 | demo board | `src/lib/demo.ts` | `/?demo=1` in development: a fixed board with no database, for design work and for re-shooting the link preview |
 | seeded board | `scripts/seed.ts` | `npm run seed`: the sixteen-note story at the top of this README, written into `.pgdata` as ordinary board data |
+| stray pages | `src/app/error.tsx`, `src/app/not-found.tsx` | a database blip and a typo'd URL, as a card pinned to an empty wall rather than a stock framework page |
+| not indexed | `src/app/robots.ts` | search engines are asked to stay out: this is a forwarded link, not a search result |
 | design system | `src/app/globals.css` | the whole visual system, documented in the header comment |
 
 Design intent lives in [`PRODUCT.md`](PRODUCT.md); the palette, paper stocks and type

@@ -10,7 +10,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 // ponytail: single-admin auth = compare a signed cookie to sha256(ADMIN_SECRET).
-// No user table, no auth provider — there is exactly one admin (you). Swap for a
+// No user table, no auth provider: there is exactly one admin (you). Swap for a
 // real auth provider only if you ever add more than one moderator.
 const COOKIE = "gossip_admin";
 

@@ -49,6 +49,7 @@ Written down because they were chosen, not overlooked:
 - **Nothing surfaces problems.** There is no report button and no notification. The moderator finds out that something needs removing when a person tells him. The board carries a link to the repo so a stranger has somewhere to go.
 - **No record is kept.** Editing overwrites what the person originally wrote, and there is no audit of what was edited or removed. The board is what it is right now. Owner rewords are the same: no history.
 - **A removed string can be re-tied.** Untying works by letting a re-tie revive the pair, which also means a string the moderator removed comes back if any visitor ties the same two notes again. Removed notes are not affected; they refuse new strings entirely.
+- **Not in search results.** `robots.ts` asks every crawler to stay out. A stranger should arrive here because somebody forwarded them the link, not because they searched a person's name, and nothing on the wall is verified enough to deserve permanent attachment to anybody. It is a request rather than a control: the board stays fully public to anyone holding the URL.
 - **Nothing is automatic.** No cron, no expiry, no auto-approval, no filtering. The board only changes when a person does something to it.
 
 ## Brand Personality

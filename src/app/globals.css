@@ -1373,3 +1373,42 @@ main {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* =====================================================================
+   STRAY: the two pages that are not the board (error, not-found)
+   ===================================================================== */
+/* One card pinned to an otherwise empty wall. Both reuse the cork surface and
+   the rules card rather than inventing a second visual language for the two
+   states a visitor is least likely to forgive looking generated. */
+.stray {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  /* .board suppresses selection because every surface on it is a drag target.
+     Nothing here drags, and an error reference is worth being able to copy. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.stray-card {
+  width: min(340px, 100%);
+}
+
+/* .pin-btn is parked in the corner of the board by position: absolute. In here
+   it is just a button sitting in the flow of a card. The descendant selector is
+   deliberate: .wall-rules a underlines its links, and a bare .stray-btn loses
+   to it on specificity. */
+.stray-card .stray-btn {
+  position: static;
+  display: inline-block;
+  text-decoration: none;
+}
+
+.stray-ref {
+  margin: 14px 0 0;
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  opacity: 0.5;
+}
