@@ -105,9 +105,9 @@ flowchart LR
     B -->|bucket empty| X[429 · slow down]
     B --> C[(status=approved)]
     C --> H[public wall]
-    H -.->|the browser that made it, with its secret| M[/api/manage]
+    H -.->|the browser that made it, with its secret| M["/api/manage"]
     M --> C
-    H -.->|you, later| F[/admin]
+    H -.->|you, later| F["/admin"]
     F -->|edit in place| C
     F -->|remove| R[(status=removed)]
 ```
