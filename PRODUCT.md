@@ -30,7 +30,11 @@ This was a deliberate reversal. The board previously pre-moderated every note an
 What replaces it:
 
 - **Takedown, not review.** `/admin` lists what is live, newest first, and can edit a note in place or remove it. Removal is soft (`status='removed'`) and the public read already filters on `approved`, so a removed note and its strings disappear together.
-- **The gate is the only guard.** A per-IP rate limit and a Cloudflare Turnstile check are now the entire defence. Both used to fail open when unconfigured, which was safe when a human queue backstopped them. In production they now **fail closed**: if the gate is not configured, submissions are refused. If the environment is wrong, nobody can post, rather than anybody being able to post anything at any rate.
+- **A per-IP rate limit is the only guard.** It is the entire defence: nothing is reviewed before it publishes and there is no bot check. It counts in the same Postgres the notes live in, so there is no configuration that can be half done. If the database is reachable the limit is enforced, and if it is not, the board does not work at all.
+
+  This replaced a Cloudflare Turnstile check and a Redis-backed limiter that both failed open when unconfigured, then both failed closed once nothing queued behind a moderator. Failing closed meant a missing environment variable turned the live board read-only, which is a strange way for a toy to break. Counting in the database it already depends on removes the failure mode rather than choosing which way it falls.
+
+  What that costs is real and accepted: a script can post at exactly the limit, forever, from as many addresses as it has. The ceiling on the damage is the bucket size and the takedown console, not prevention.
 
 ### Yours to manage
 

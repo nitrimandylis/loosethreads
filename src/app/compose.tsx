@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import { MAX_BODY } from "@/lib/limits";
-import { prefetchToken, takeToken } from "@/lib/turnstile-client";
 import type { NoteRow } from "@/lib/queries";
 
 /**
@@ -29,11 +28,10 @@ export function Compose({
 
   async function pin() {
     setBusy(true);
-    const token = await takeToken();
     const res = await fetch("/api/submit", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body, turnstileToken: token }),
+      body: JSON.stringify({ body }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -59,11 +57,7 @@ export function Compose({
     return (
       <button
         className="pin-btn"
-        onClick={() => {
-          setOpen(true);
-          // Fetch the bot check's token while they write, not when they pin.
-          prefetchToken();
-        }}
+        onClick={() => setOpen(true)}
       >
         Pin a rumour
       </button>

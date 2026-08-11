@@ -1,27 +1,17 @@
 import { NextResponse } from "next/server";
 import { ensureSchema } from "@/lib/db";
-import { allowManage, hasUpstash } from "@/lib/ratelimit";
-import { hasTurnstile } from "@/lib/turnstile";
+import { allowManage } from "@/lib/ratelimit";
 import { takedownNote, rewordNote, untieEdge, removeStamp } from "@/lib/manage";
 import { MAX_BODY } from "@/lib/limits";
 
 /**
  * Acting on your own rows: take a note down, reword it, untie a string,
- * take back a stamp. The proof is the secret handed back at creation; there
- * is no Turnstile here because the secret already ties the request to a
- * creation that passed it, and the worst a replay can do is re-remove
- * something already removed. Same production gate as submissions, so a
- * misconfigured deploy refuses writes of every kind.
+ * take back a stamp. The proof is the secret handed back at creation, which
+ * ties the request to something this browser actually created, and the worst a
+ * replay can do is re-remove something already removed. The rate limit is here
+ * only to cap that replay.
  */
-function gateClosed(): boolean {
-  if (process.env.NODE_ENV !== "production") return false;
-  return !hasUpstash || !hasTurnstile;
-}
-
 export async function POST(req: Request) {
-  if (gateClosed()) {
-    return NextResponse.json({ error: "Submissions are closed right now." }, { status: 503 });
-  }
   if (!(await allowManage(req))) {
     return NextResponse.json({ error: "Slow down." }, { status: 429 });
   }

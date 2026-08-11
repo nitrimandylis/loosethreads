@@ -116,6 +116,18 @@ export function ensureSchema(): Promise<void> {
       await sql`ALTER TABLE edges ADD COLUMN IF NOT EXISTS secret UUID DEFAULT gen_random_uuid()`;
       await sql`ALTER TABLE reactions ADD COLUMN IF NOT EXISTS secret UUID DEFAULT gen_random_uuid()`;
 
+      // Rate limiting lives here rather than in Redis: one row per allowed
+      // action, counted over a window. No primary key, because nothing ever
+      // references a hit; the index is the only thing that reads it.
+      await sql`
+        CREATE TABLE IF NOT EXISTS hits (
+          ip TEXT NOT NULL,
+          action TEXT NOT NULL,
+          at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS hits_window_idx ON hits (ip, action, at)`;
+
       await sql`CREATE INDEX IF NOT EXISTS reactions_node_idx ON reactions(node_id)`;
       await sql`CREATE INDEX IF NOT EXISTS nodes_status_idx ON nodes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS edges_status_idx ON edges(status)`;

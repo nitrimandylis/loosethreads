@@ -1,4 +1,3 @@
-import Script from "next/script";
 import Board from "./board";
 import { getApprovedBoard } from "@/lib/queries";
 import { demoBoard } from "@/lib/demo";
@@ -14,13 +13,9 @@ export default async function Home({
   // design and for re-shooting the link preview. Development only.
   const demo = process.env.NODE_ENV !== "production" && (await searchParams).demo === "1";
   const { notes, edges } = demo ? demoBoard() : await getApprovedBoard();
-  const hasTurnstile = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
   return (
     <main>
-      {hasTurnstile && (
-        <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
-      )}
       {/* The title and the rules are pinned to the wall itself, not floated
           over it: the only thing allowed to hover above the board is the one
           action that puts something on it. */}

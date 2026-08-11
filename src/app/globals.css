@@ -958,14 +958,6 @@ main {
   transform: translateX(-50%) rotate(-0.8deg);
 }
 
-/* the shared Turnstile widget: present, invisible until it needs the visitor */
-.gate {
-  position: absolute;
-  right: 20px;
-  bottom: 78px;
-  z-index: var(--z-sheet);
-}
-
 /* =====================================================================
    COMPOSING: you write on the note
    ===================================================================== */

@@ -19,7 +19,7 @@
 
 *an infinite corkboard for anonymous rumors, with red string and nobody on duty*
 
-![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow,_no_chrome-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/moderation-after__the__fact-c0231f?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
+![next](https://img.shields.io/badge/next.js-16-000000?style=flat-square&labelColor=111111) ![canvas](https://img.shields.io/badge/canvas-react_flow,_no_chrome-c0231f?style=flat-square&labelColor=111111) ![moderation](https://img.shields.io/badge/moderation-after__the__fact-c0231f?style=flat-square&labelColor=111111) ![services](https://img.shields.io/badge/services-1_(postgres)-000000?style=flat-square&labelColor=111111) ![accounts](https://img.shields.io/badge/accounts-0_(by_design)-000000?style=flat-square&labelColor=111111) ![string](https://img.shields.io/badge/red_string-included-c0231f?style=flat-square&labelColor=111111)
 
 ![the board](.github/assets/board.jpg)
 
@@ -57,7 +57,7 @@ nick@loosethreads:~$ npm run dev
 | 08 | **notes age** | paper yellows the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
 | 09 | **yours to manage** | every row you create hands your browser a secret. Take your own note down, reword it, untie your string, take a stamp back, all without an account. Clear your browser data and it's gone |
 | 10 | **rearrange your own view** | drag a note (hold to lift, on touch) and it moves for you only, in sessionStorage. The string follows it. Nobody else's wall changes and a closed tab straightens yours back out |
-| 11 | **no accounts** | no login, no profile, no email. Turnstile and a per-IP rate limit are the whole gate |
+| 11 | **no accounts** | no login, no profile, no email. A per-IP rate limit, counted in Postgres, is the whole gate |
 
 ## 🚀 Run it
 
@@ -70,11 +70,12 @@ SQL, nothing to install, nothing left running. `rm -rf .pgdata` empties the
 board. It refuses to start in production, where a database on the serverless
 filesystem would quietly lose everything on it.
 
-Upstash and Turnstile are optional **locally only**. Because submissions publish
-immediately, those two are the entire defence in production, so the submit route
-**fails closed**: with any of them missing, a production deploy refuses
-submissions with a 503 rather than serving an unthrottled anonymous write
-endpoint. Locally, both are skipped and everything works.
+That is the whole configuration. The per-IP rate limit counts rows in the same
+Postgres the notes live in, so there is no second service to sign up for, no
+extra environment variables, and no way to deploy with the limit switched off:
+if the database is reachable it is enforced, and if it is not, nothing works
+anyway. There is no bot check. Nothing is reviewed before it publishes either,
+so that limit and the takedown console are the entire defence.
 
 ```bash
 git clone https://github.com/nitrimandylis/loosethreads.git
@@ -100,8 +101,8 @@ VMs over one folder is one too many.
 
 ```mermaid
 flowchart LR
-    A[anonymous visitor] -->|note or red string| B[Turnstile + rate limit]
-    B -->|unconfigured in prod| X[503 · submissions closed]
+    A[anonymous visitor] -->|note or red string| B[per-IP rate limit]
+    B -->|bucket empty| X[429 · slow down]
     B --> C[(status=approved)]
     C --> H[public wall]
     H -.->|the browser that made it, with its secret| M[/api/manage]
@@ -121,11 +122,11 @@ flowchart LR
 | wall geometry | `src/lib/wall.ts` | bounds, landing scale, pin points, string paths. Pure functions, no DOM |
 | paper | `src/lib/paper.ts` | which stock, tilt, pin and width a note gets, derived from its id |
 | aging | `src/lib/aging.ts` | note age → visual bucket |
-| submit api | `src/app/api/submit/route.ts` | the gate: fails closed in prod, rate-limits per action, Turnstile-checks, publishes |
+| submit api | `src/app/api/submit/route.ts` | the gate: rate-limits per action, then publishes immediately |
 | manage api | `src/app/api/manage/route.ts` | acting on your own rows: take down, reword, untie, unstamp. The secret is the whole proof |
 | your rows | `src/lib/mine.ts`, `src/lib/manage.ts` | the secrets this browser holds (localStorage), and the SQL that checks one inside the `WHERE` |
 | your view | `src/lib/moved.ts` | where you dragged notes to, in sessionStorage. Never sent anywhere |
-| rate limits | `src/lib/ratelimit.ts` | four buckets priced by cost: notes 5, strings 15, stamps 60, manage 30, per 10 min per IP |
+| rate limits | `src/lib/ratelimit.ts` | five buckets priced by cost, counted in Postgres: notes 5, strings 15, stamps 60, manage 30 per 10 min, logins 5 per 15 min, per IP |
 | admin | `src/app/admin/` | secret-gated live board: edit in place, remove, sign out |
 | db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`, `reactions`) |
 | queries | `src/lib/queries.ts` | public board read + the moderator's live-board read |
@@ -137,7 +138,7 @@ flowchart LR
 Design intent lives in [`PRODUCT.md`](PRODUCT.md); the palette, paper stocks and type
 pairing are documented at the top of `globals.css`. Read both before restyling anything.
 
-**Stack:** Next.js 16 · React 19 · React Flow · anime.js · Neon Postgres · Upstash · Cloudflare Turnstile · TypeScript
+**Stack:** Next.js 16 · React 19 · React Flow · anime.js · Neon Postgres · TypeScript
 
 ---
 

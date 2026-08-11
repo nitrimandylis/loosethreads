@@ -31,12 +31,9 @@ import {
   fitScale,
   FURNITURE,
 } from "@/lib/wall";
-import { mountTurnstile, getToken } from "@/lib/turnstile-client";
 import { rememberNote, rememberEdge, edgeSecret, forgetEdge } from "@/lib/mine";
 import { subscribeMoves, getMoves, getServerMoves, writeMove, applyMoves } from "@/lib/moved";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
-
-const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 /** How often the wall re-reads itself while somebody is looking at it. */
 const POLL_MS = 15_000;
@@ -89,7 +86,6 @@ export default function Board({ notes: served, edges: servedEdges }: {
   const router = useRouter();
 
   const boardEl = useRef<HTMLDivElement>(null);
-  const gate = useRef<HTMLDivElement>(null);
   const rf = useRef<ReactFlowInstance | null>(null);
 
   // Things this visitor added since the page loaded. They are already public;
@@ -186,23 +182,6 @@ export default function Board({ notes: served, edges: servedEdges }: {
     window.addEventListener("resize", set);
     return () => window.removeEventListener("resize", set);
   }, [bounds, measure]);
-
-  // One Turnstile widget for the whole board, so tying string can get a token
-  // too. The script is loaded by the page; wait for it rather than racing it.
-  useEffect(() => {
-    if (!siteKey || !gate.current) return;
-    const el = gate.current;
-    let tries = 0;
-    const id = setInterval(() => {
-      if (window.turnstile) {
-        mountTurnstile(el, siteKey);
-        clearInterval(id);
-      } else if (++tries > 40) {
-        clearInterval(id);
-      }
-    }, 250);
-    return () => clearInterval(id);
-  }, []);
 
   // Everything publishes instantly, so somebody else's rumour can land while
   // you are reading. Only while the tab is actually being looked at.
@@ -335,11 +314,10 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
   const tie = useCallback(
     async (a: number, b: number) => {
-      const token = await getToken();
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type: "edge", sourceId: a, targetId: b, turnstileToken: token }),
+        body: JSON.stringify({ type: "edge", sourceId: a, targetId: b }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.edge) {
@@ -645,7 +623,6 @@ export default function Board({ notes: served, edges: servedEdges }: {
       />
 
       {toast && <div className="toast">{toast}</div>}
-      <div className="gate" ref={gate} aria-hidden="true" />
     </div>
   );
 }

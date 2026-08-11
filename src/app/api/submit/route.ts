@@ -1,44 +1,22 @@
 import { NextResponse } from "next/server";
 import { sql, ensureSchema } from "@/lib/db";
-import { allowNote, allowEdge, allowReaction, clientIp, hasUpstash } from "@/lib/ratelimit";
-import { verifyTurnstile, hasTurnstile } from "@/lib/turnstile";
+import { allowNote, allowEdge, allowReaction } from "@/lib/ratelimit";
 import { place, type Point } from "@/lib/placement";
 import { FURNITURE } from "@/lib/wall";
 import { isStamp } from "@/lib/reactions";
 import { MAX_BODY } from "@/lib/limits";
 
 /**
- * Everything here publishes immediately. There is no moderation queue, so the
- * rate limit and the bot check are the only things between a stranger and the
- * public board.
+ * Everything here publishes immediately. There is no moderation queue and no
+ * bot check, so the per-IP rate limit is the only thing between a stranger and
+ * the public board.
  *
- * Both of those fail OPEN when unconfigured, which was the right call when a
- * human queue backstopped them and is the wrong call now. So in production we
- * refuse writes outright rather than serve an unthrottled anonymous write
- * endpoint. If the env is missing, the worst case is that nobody can post,
- * not that anybody can post anything at any rate.
+ * There is no configuration gate any more either. The limit counts in the same
+ * Postgres the board stores its notes in, so it cannot be half set up: if the
+ * database is reachable the limit is enforced, and if it is not, nothing works
+ * at all. That is the whole reason it moved out of Redis.
  */
-function gateClosed(): boolean {
-  if (process.env.NODE_ENV !== "production") return false;
-  return !hasUpstash || !hasTurnstile;
-}
-
-const CLOSED = NextResponse.json(
-  { error: "Submissions are closed right now." },
-  { status: 503 }
-);
-
 export async function POST(req: Request) {
-  if (gateClosed()) {
-    console.error(
-      "submit refused: production gate incomplete " +
-        `(upstash=${hasUpstash}, turnstile=${hasTurnstile}). ` +
-        "Set UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, TURNSTILE_SECRET_KEY " +
-        "and NEXT_PUBLIC_TURNSTILE_SITE_KEY."
-    );
-    return CLOSED;
-  }
-
   await ensureSchema();
 
   let payload: unknown;
@@ -48,8 +26,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
   const data = payload as Record<string, unknown>;
-  const ip = clientIp(req);
-  const token = typeof data.turnstileToken === "string" ? data.turnstileToken : null;
 
   // ---- Reaction: a counter on something already public ----
   if (data.type === "reaction") {
@@ -58,9 +34,8 @@ export async function POST(req: Request) {
     if (!Number.isInteger(nodeId) || !isStamp(data.kind)) {
       return NextResponse.json({ error: "Invalid reaction" }, { status: 400 });
     }
-    // No bot check here on purpose: stamps should feel free, and a Turnstile
-    // token is single-use so rapid stamping would mean re-solving. Dedupe is
-    // per-browser on the client; the bucket above is the real ceiling.
+    // Dedupe is per-browser on the client; the bucket above is the real
+    // ceiling, and it is generous because a stamp should feel free.
     const ok = await sql`SELECT 1 FROM nodes WHERE id = ${nodeId} AND status = 'approved'`;
     if (ok.length !== 1) {
       return NextResponse.json({ error: "No such note" }, { status: 400 });
@@ -81,9 +56,6 @@ export async function POST(req: Request) {
     const target = Number(data.targetId);
     if (!Number.isInteger(source) || !Number.isInteger(target) || source === target) {
       return NextResponse.json({ error: "Invalid connection" }, { status: 400 });
-    }
-    if (!(await verifyTurnstile(token, ip))) {
-      return NextResponse.json({ error: "Bot check failed. Refresh and retry." }, { status: 403 });
     }
     const ok = await sql`
       SELECT count(*)::int AS n FROM nodes
@@ -119,9 +91,6 @@ export async function POST(req: Request) {
 
   if (!body || body.length > MAX_BODY) {
     return NextResponse.json({ error: `Note must be 1-${MAX_BODY} characters.` }, { status: 400 });
-  }
-  if (!(await verifyTurnstile(token, ip))) {
-    return NextResponse.json({ error: "Bot check failed. Refresh and retry." }, { status: 403 });
   }
 
   // Place it clear of everything already pinned up. There are no sections any

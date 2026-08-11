@@ -49,3 +49,4 @@ next-env.d.ts
 
 # design docs and plans, local only
 /docs/
+.test-pgdata/
