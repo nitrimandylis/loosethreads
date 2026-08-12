@@ -32,6 +32,11 @@ const BUCKETS = {
   login: { limit: 5, minutes: 15 },
   // Managing your own rows is secret-gated already; the bucket caps replay.
   manage: { limit: 30, minutes: 10 },
+  // The other real auth gate: a private board's passphrase. Slightly looser
+  // than login because the people typing it are reading a word off a screenshot
+  // and getting it wrong, not attacking anything. Without this bucket the gate
+  // is a guessing game against a word somebody chose, which is not a gate.
+  unlock: { limit: 8, minutes: 15 },
 } as const;
 
 type Action = keyof typeof BUCKETS;
@@ -88,3 +93,4 @@ export const allowEdge = (req: Request) => check("edge", req);
 export const allowReaction = (req: Request) => check("reaction", req);
 export const allowLogin = (req: Request) => check("login", req);
 export const allowManage = (req: Request) => check("manage", req);
+export const allowUnlock = (req: Request) => check("unlock", req);

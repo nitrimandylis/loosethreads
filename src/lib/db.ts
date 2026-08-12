@@ -128,6 +128,34 @@ export function ensureSchema(): Promise<void> {
       `;
       await sql`CREATE INDEX IF NOT EXISTS hits_window_idx ON hits (ip, action, at)`;
 
+      // More than one wall. '' is the public one; anything else is a private
+      // board reached only at /b/<slug>, and only by someone who knows its
+      // passphrase. An open board (pass_hash NULL) is readable by anyone
+      // holding the link, which is what the public wall is.
+      await sql`
+        CREATE TABLE IF NOT EXISTS boards (
+          id BIGSERIAL PRIMARY KEY,
+          slug TEXT UNIQUE NOT NULL,
+          pass_salt TEXT,
+          pass_hash TEXT,
+          -- Handed to a browser as a cookie once it proves the passphrase.
+          -- Rotating it logs everyone out at once: the un-invite button.
+          access_token UUID NOT NULL DEFAULT gen_random_uuid(),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await sql`INSERT INTO boards (slug) VALUES ('') ON CONFLICT (slug) DO NOTHING`;
+
+      // ponytail: nullable on purpose, no SET NOT NULL. The constraint would
+      // have to be added at a moment when every row already has a board, which
+      // races the seconds where old and new code both serve traffic. Every
+      // write below names a board, the backfill covers everything written
+      // before this deploy, and a straggler NULL is invisible to a scoped read
+      // rather than a 500.
+      await sql`ALTER TABLE nodes ADD COLUMN IF NOT EXISTS board_id BIGINT REFERENCES boards(id)`;
+      await sql`UPDATE nodes SET board_id = (SELECT id FROM boards WHERE slug = '') WHERE board_id IS NULL`;
+      await sql`CREATE INDEX IF NOT EXISTS nodes_board_idx ON nodes (board_id, status)`;
+
       await sql`CREATE INDEX IF NOT EXISTS reactions_node_idx ON reactions(node_id)`;
       await sql`CREATE INDEX IF NOT EXISTS nodes_status_idx ON nodes(status)`;
       await sql`CREATE INDEX IF NOT EXISTS edges_status_idx ON edges(status)`;

@@ -11,7 +11,7 @@ A friend group first, then whoever they forward the link to. Most arrive from a 
 Two roles:
 
 - **Visitors** (everyone): read the board, pin a rumour, tie red string between two notes, stamp a note. Everything they submit is public immediately. What they created from this browser stays theirs to manage: take a note down, reword it, untie a string, take a stamp back. Anyone can also drag any note around their own view of the wall; nobody else sees that.
-- **The moderator** (Nick, one person, `ADMIN_SECRET`): can edit or remove anything that is already on the board. Nothing waits for him.
+- **The moderator** (Nick, one person, `ADMIN_SECRET`): can edit or remove anything that is already on any board, public or private. Nothing waits for him.
 
 ## Product Purpose
 
@@ -42,6 +42,19 @@ Everything a browser creates comes back with a secret (one random UUID per row) 
 
 Rearranging is different: dragging a note (mouse: drag it; touch: hold to lift) moves it only in your own view, kept in sessionStorage so a closed tab straightens the wall back out. The shared wall never learns about it.
 
+## Private boards
+
+`/` is the public wall. `/b/<slug>` is somebody else's, and it opens with a shared word.
+
+This exists because the first person who wanted one did not want her friends' gossip mixed into a board strangers can reach. The link alone is not enough: an unguessable slug gets you to the gate, and the passphrase gets you past it, so a link forwarded out of the group chat it was meant for does not carry access with it.
+
+- **A word, not an account.** Nobody makes an account for a private board either. The word is told to people in person, and everyone who has it is the same anonymous visitor they are on the public wall.
+- **The gate covers the routes, not just the page.** Reads and writes both check it. A locked board renders no notes into its HTML, and `/api/submit` refuses a slug the caller has not opened, which is what stops a known slug being posted to from outside.
+- **Guessing is rate limited.** Unlock attempts count in the same Postgres bucket as everything else. A shared word is only as private as the number of tries somebody gets at it.
+- **Two ways to close a board again.** Replacing the passphrase changes the word; signing everyone out leaves the word alone and invalidates every cookie, so the people inside have to type it again. Both are buttons in `/admin`.
+- **Boards are made in `/admin`.** There is no self-serve "start a board" on the public wall. One person has asked for one; that is one route to add on the day a second person does.
+- **Private from the internet, not from the moderator.** `/admin` switches between every board and can edit or remove on any of them. Whoever holds `ADMIN_SECRET` owns the database and can read all of it. Anyone putting something on a private board should know that.
+
 ### Accepted tradeoffs
 
 Written down because they were chosen, not overlooked:
@@ -49,6 +62,7 @@ Written down because they were chosen, not overlooked:
 - **Nothing surfaces problems.** There is no report button and no notification. The moderator finds out that something needs removing when a person tells him. The board carries a link to the repo so a stranger has somewhere to go.
 - **No record is kept.** Editing overwrites what the person originally wrote, and there is no audit of what was edited or removed. The board is what it is right now. Owner rewords are the same: no history.
 - **A removed string can be re-tied.** Untying works by letting a re-tie revive the pair, which also means a string the moderator removed comes back if any visitor ties the same two notes again. Removed notes are not affected; they refuse new strings entirely.
+- **A private board's link preview says nothing.** Pasting `/b/<slug>` into a chat previews as "a board" with no image of the wall, because the preview renders for everybody the link reaches, including before anyone has typed the word.
 - **Not in search results.** `robots.ts` asks every crawler to stay out. A stranger should arrive here because somebody forwarded them the link, not because they searched a person's name, and nothing on the wall is verified enough to deserve permanent attachment to anybody. It is a request rather than a control: the board stays fully public to anyone holding the URL.
 - **Nothing is automatic.** No cron, no expiry, no auto-approval, no filtering. The board only changes when a person does something to it.
 

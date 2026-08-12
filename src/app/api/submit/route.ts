@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql, ensureSchema } from "@/lib/db";
 import { allowNote, allowEdge, allowReaction } from "@/lib/ratelimit";
+import { unlockedBoardId } from "@/lib/access";
 import { place, type Point } from "@/lib/placement";
 import { FURNITURE } from "@/lib/wall";
 import { isStamp } from "@/lib/reactions";
@@ -27,6 +28,12 @@ export async function POST(req: Request) {
   }
   const data = payload as Record<string, unknown>;
 
+  // Which wall, and is this browser allowed on it? The public one is open, a
+  // private one needs the cookie the passphrase hands out. Everything below
+  // writes with this id, so nothing can land on a board the caller is not in.
+  const boardId = await unlockedBoardId(data.slug);
+  if (boardId === null) return locked();
+
   // ---- Reaction: a counter on something already public ----
   if (data.type === "reaction") {
     if (!(await allowReaction(req))) return tooMany();
@@ -36,7 +43,9 @@ export async function POST(req: Request) {
     }
     // Dedupe is per-browser on the client; the bucket above is the real
     // ceiling, and it is generous because a stamp should feel free.
-    const ok = await sql`SELECT 1 FROM nodes WHERE id = ${nodeId} AND status = 'approved'`;
+    const ok = await sql`
+      SELECT 1 FROM nodes WHERE id = ${nodeId} AND status = 'approved' AND board_id = ${boardId}
+    `;
     if (ok.length !== 1) {
       return NextResponse.json({ error: "No such note" }, { status: 400 });
     }
@@ -57,9 +66,11 @@ export async function POST(req: Request) {
     if (!Number.isInteger(source) || !Number.isInteger(target) || source === target) {
       return NextResponse.json({ error: "Invalid connection" }, { status: 400 });
     }
+    // Both endpoints must be on THIS board, which is also what stops a string
+    // being tied between two walls: two notes, one board, or no string.
     const ok = await sql`
       SELECT count(*)::int AS n FROM nodes
-      WHERE id IN (${source}, ${target}) AND status = 'approved'
+      WHERE id IN (${source}, ${target}) AND status = 'approved' AND board_id = ${boardId}
     `;
     if (ok[0].n !== 2) {
       return NextResponse.json({ error: "Both notes must exist" }, { status: 400 });
@@ -93,10 +104,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Note must be 1-${MAX_BODY} characters.` }, { status: 400 });
   }
 
-  // Place it clear of everything already pinned up. There are no sections any
-  // more: one wall, and it grows as notes land on it.
+  // Place it clear of everything already pinned up on THIS wall. Counting
+  // another board's notes as neighbours would push a private board's first
+  // note into a corner to avoid things nobody on it can see.
   const neighbours = (await sql`
-    SELECT x, y FROM nodes WHERE status = 'approved'
+    SELECT x, y FROM nodes WHERE status = 'approved' AND board_id = ${boardId}
   `) as Point[];
   const { x, y } = place(neighbours, Object.values(FURNITURE));
 
@@ -105,8 +117,8 @@ export async function POST(req: Request) {
   // find out whether it worked. It needs the real id and the real coordinates:
   // a guessed position would move under them on the next load.
   const [note] = (await sql`
-    INSERT INTO nodes (body, x, y, status)
-    VALUES (${body}, ${x}, ${y}, 'approved')
+    INSERT INTO nodes (body, x, y, status, board_id)
+    VALUES (${body}, ${x}, ${y}, 'approved', ${boardId})
     RETURNING id, body, x, y, created_at, secret
   `) as { id: number; body: string; x: number; y: number; created_at: string; secret: string }[];
 
@@ -121,4 +133,10 @@ export async function POST(req: Request) {
 
 function tooMany() {
   return NextResponse.json({ error: "Slow down. Too many submissions." }, { status: 429 });
+}
+
+// No such board and not being in it are the same answer, so a stranger poking
+// at slugs cannot learn which ones exist by the error he gets back.
+function locked() {
+  return NextResponse.json({ error: "No such board." }, { status: 403 });
 }

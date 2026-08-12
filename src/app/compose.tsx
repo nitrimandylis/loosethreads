@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { MAX_BODY } from "@/lib/limits";
+import { postApi } from "@/lib/post";
 import type { NoteRow } from "@/lib/queries";
 
 /**
@@ -28,11 +29,7 @@ export function Compose({
 
   async function pin() {
     setBusy(true);
-    const res = await fetch("/api/submit", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body }),
-    });
+    const res = await postApi("/api/submit", { body });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
 

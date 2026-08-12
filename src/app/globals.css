@@ -611,7 +611,8 @@ main {
 .wall-rules .pin,
 .wall-photo .pin,
 .wall-map .pin,
-.compose-sheet .pin {
+.compose-sheet .pin,
+.gate .pin {
   position: absolute;
   top: -9px;
   left: 50%;
@@ -628,7 +629,8 @@ main {
 .wall-rules .pin::after,
 .wall-photo .pin::after,
 .wall-map .pin::after,
-.compose-sheet .pin::after {
+.compose-sheet .pin::after,
+.gate .pin::after {
   content: "";
   position: absolute;
   top: 3px;
@@ -1067,10 +1069,6 @@ main {
     bottom: 12px;
     min-height: 52px;
   }
-  .gate {
-    right: 12px;
-    bottom: 72px;
-  }
   .step-btn {
     bottom: 84px;
   }
@@ -1411,4 +1409,159 @@ main {
   font-size: 11px;
   letter-spacing: 0.6px;
   opacity: 0.5;
+}
+
+/* =====================================================================
+   THE GATE
+   A private board before you are on it: the wall, with an envelope pinned
+   to it. Not a login screen, because this is a state plenty of people
+   land on first and Design Principle 1 applies to it like any other.
+   ===================================================================== */
+.gate-wall {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 44px;
+  padding: 24px;
+  overflow-y: auto;
+  /* .board kills selection because everything on it drags. Nothing here
+     does, and the passphrase field needs to take a paste. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* The wordmark leans the other way from the envelope below it. Two things
+   pinned by different hands on different days, not a centred stack. */
+.gate-head {
+  /* flex: none, or a short viewport shrinks both cards and the envelope gets
+     painted over the wordmark's own text instead of below it. The column
+     scrolls instead. */
+  flex: none;
+  /* Wide enough that the wordmark at its full 42px still fits on one line;
+     on the wall itself the furniture node is sized for exactly this reason. */
+  width: min(520px, 100%);
+  transform: rotate(-1.6deg);
+}
+
+/* On the wall this is a fixed-width node, so it never has to fit anything. In
+   here it does, and it stays on ONE line to do it.
+   ponytail: not white-space: normal. Letting it wrap makes the header's height
+   depend on where the text breaks, which is measured with the fallback font
+   and then re-measured when Kalam/Courier Prime swap in: the h1 gains a line
+   after the flex box around it has already been sized, and the envelope below
+   ends up painted over the tagline. Scaling one line has no such second pass. */
+.gate-head h1 {
+  font-size: clamp(18px, 5.2vw, 42px);
+  letter-spacing: clamp(3px, 1.1vw, 10px);
+}
+/* The tagline may wrap; only the wordmark above it has to hold one line. */
+.gate-head p {
+  font-size: clamp(11px, 3vw, 16px);
+  letter-spacing: clamp(1px, 0.8vw, 4px);
+}
+
+/* Manila, not the near-white of the rules card: this is an envelope that
+   came out of a drawer, and it should read as a different object. */
+.gate {
+  position: relative;
+  flex: none;
+  width: min(380px, 100%);
+  padding: 30px 26px 22px;
+  background: #d9c48d;
+  background-image: var(--fibre);
+  color: #2b2015;
+  font-family: var(--type);
+  /* the envelope flap: a seam across the top, slightly off-square */
+  border-top: 18px solid #cbb47a;
+  transform: rotate(-1.1deg);
+  filter: drop-shadow(4px 10px 16px rgba(12, 7, 2, 0.55));
+}
+
+.gate h1 {
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(43, 32, 21, 0.32);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.gate-blurb {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.gate-field {
+  display: block;
+  margin: 0 0 16px;
+}
+
+.gate-field span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #6b5335;
+}
+
+/* Typed into, not written: a passphrase is a credential on a form, and the
+   hand face is for what people say, not what a file records about them. */
+.gate-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(43, 32, 21, 0.4);
+  background: rgba(255, 252, 240, 0.5);
+  font-family: var(--type);
+  font-size: 16px; /* 16px or iOS zooms the whole wall on focus */
+  letter-spacing: 2px;
+  color: #2b2015;
+}
+
+.gate button {
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  background: #8a1b17;
+  color: #f6ece0;
+  font-family: var(--type);
+  font-size: 13px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.gate button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Stamped on at an angle, the way a rejection gets stamped on a file. */
+.gate-error {
+  margin: 14px 0 0;
+  padding: 6px 10px;
+  border: 2px solid var(--red-dark);
+  color: var(--red-dark);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transform: rotate(-1.6deg);
+}
+
+.gate-foot {
+  margin: 18px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: #6b5335;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gate,
+  .gate-head,
+  .gate-error {
+    transform: none;
+  }
 }

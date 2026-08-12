@@ -21,6 +21,7 @@ import {
   forgetNote,
 } from "@/lib/mine";
 import { MAX_BODY } from "@/lib/limits";
+import { postApi } from "@/lib/post";
 import type { NoteRow } from "@/lib/queries";
 
 /** Stamps are ink on paper, and 👀 needs a class name a stylesheet can hold. */
@@ -82,11 +83,7 @@ export function Note({
     setCounts((c) => ({ ...c, [kind]: (c[kind] ?? 0) + 1 })); // optimistic
     rememberStamp(note.id, kind);
 
-    const data = await fetch("/api/submit", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "reaction", nodeId: note.id, kind }),
-    })
+    const data = await postApi("/api/submit", { type: "reaction", nodeId: note.id, kind })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null);
 
@@ -107,11 +104,7 @@ export function Note({
     setCounts((c) => ({ ...c, [kind]: Math.max(0, (c[kind] ?? 1) - 1) })); // optimistic
     forgetStamp(note.id, kind);
 
-    const ok = await fetch("/api/manage", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "unstamp", id: proof.id, secret: proof.secret }),
-    })
+    const ok = await postApi("/api/manage", { action: "unstamp", id: proof.id, secret: proof.secret })
       .then((r) => r.ok)
       .catch(() => false);
 
@@ -184,11 +177,7 @@ export function Note({
             const next = e.target.value.trim();
             setEditing(false);
             if (!next || next === body || !secret) return;
-            const res = await fetch("/api/manage", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ action: "reword", id: note.id, secret, body: next }),
-            }).catch(() => null);
+            const res = await postApi("/api/manage", { action: "reword", id: note.id, secret, body: next }).catch(() => null);
             if (res?.ok) setReworded(next);
             else say("The reword did not take.");
           }}
@@ -245,11 +234,7 @@ export function Note({
               <button
                 className="tray-own"
                 onClick={async () => {
-                  const res = await fetch("/api/manage", {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ action: "takedown", id: note.id, secret }),
-                  }).catch(() => null);
+                  const res = await postApi("/api/manage", { action: "takedown", id: note.id, secret }).catch(() => null);
                   if (res?.ok) {
                     forgetNote(note.id);
                     onTakedown(note.id);

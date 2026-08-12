@@ -32,6 +32,7 @@ import {
   FURNITURE,
 } from "@/lib/wall";
 import { rememberNote, rememberEdge, edgeSecret, forgetEdge } from "@/lib/mine";
+import { postApi } from "@/lib/post";
 import { subscribeMoves, getMoves, getServerMoves, writeMove, applyMoves } from "@/lib/moved";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
@@ -314,11 +315,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
 
   const tie = useCallback(
     async (a: number, b: number) => {
-      const res = await fetch("/api/submit", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type: "edge", sourceId: a, targetId: b }),
-      });
+      const res = await postApi("/api/submit", { type: "edge", sourceId: a, targetId: b });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.edge) {
         say(data.error || "That string did not hold.");
@@ -543,11 +540,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
           const secret = edgeSecret(e.id);
           setPickedString(null);
           if (!secret) return;
-          const res = await fetch("/api/manage", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ action: "untie", id: e.id, secret }),
-          }).catch(() => null);
+          const res = await postApi("/api/manage", { action: "untie", id: e.id, secret }).catch(() => null);
           if (res?.ok) {
             forgetEdge(e.id);
             setCutIds((s) => new Set(s).add(e.id));

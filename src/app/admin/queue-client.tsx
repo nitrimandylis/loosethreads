@@ -122,6 +122,113 @@ export function Board({ notes, edges }: { notes: LiveNote[]; edges: LiveEdge[] }
   );
 }
 
+/**
+ * Every board, and the controls for the private ones.
+ *
+ * This console covers all of them, which is a decision with a consequence:
+ * whoever holds ADMIN_SECRET can read and take down anything on a private
+ * board. A board is private from the internet, not from the person who owns
+ * the database.
+ */
+export function Boards({
+  boards,
+  current,
+}: {
+  boards: { slug: string; created_at: string; notes: number }[];
+  current: string;
+}) {
+  const router = useRouter();
+  const [word, setWord] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [made, setMade] = useState("");
+
+  async function send(body: Record<string, unknown>): Promise<{ slug?: string } | null> {
+    setBusy(true);
+    setErr("");
+    const res = await fetch("/api/admin/boards", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    setBusy(false);
+    const data = await res?.json().catch(() => ({}));
+    if (!res?.ok) {
+      setErr(data?.error ?? "Failed.");
+      return null;
+    }
+    return data ?? {};
+  }
+
+  async function create() {
+    const data = await send({ action: "create", passphrase: word });
+    if (!data?.slug) return;
+    setMade(data.slug);
+    setWord("");
+    router.refresh();
+  }
+
+  async function rekey(slug: string) {
+    const next = prompt(`New passphrase for /b/${slug}. Everyone inside has to be told it.`);
+    if (!next) return;
+    if (await send({ action: "passphrase", slug, passphrase: next })) router.refresh();
+  }
+
+  async function rotate(slug: string) {
+    if (!confirm(`Sign everyone out of /b/${slug}?\n\nThe passphrase still works.`)) return;
+    if (await send({ action: "rotate", slug })) router.refresh();
+  }
+
+  return (
+    <section className="boards">
+      <h2>Boards</h2>
+      {err && <p className="err">{err}</p>}
+
+      <div className="board-list">
+        {boards.map((b) => {
+          const label = b.slug === "" ? "the public wall" : `/b/${b.slug}`;
+          return (
+            <div className={`board-row${b.slug === current ? " on" : ""}`} key={b.slug || "public"}>
+              <a href={b.slug === "" ? "/admin" : `/admin?board=${b.slug}`}>{label}</a>
+              <span className="board-count">{b.notes} notes</span>
+              {b.slug !== "" && (
+                <span className="board-acts">
+                  <button disabled={busy} onClick={() => rekey(b.slug)}>
+                    New passphrase
+                  </button>
+                  <button disabled={busy} onClick={() => rotate(b.slug)}>
+                    Sign everyone out
+                  </button>
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="board-new">
+        <input
+          type="text"
+          value={word}
+          placeholder="Passphrase for a new board"
+          aria-label="Passphrase for a new board"
+          onChange={(e) => setWord(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !busy && word.trim() && create()}
+        />
+        <button disabled={busy || !word.trim()} onClick={create}>
+          Make a board
+        </button>
+      </div>
+
+      {made && (
+        <p className="board-made">
+          Made <strong>/b/{made}</strong>. Send someone that link and the word, separately.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function SignOut() {
   const router = useRouter();
   return (

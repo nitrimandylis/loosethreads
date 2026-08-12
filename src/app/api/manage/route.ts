@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureSchema } from "@/lib/db";
 import { allowManage } from "@/lib/ratelimit";
+import { unlockedBoardId } from "@/lib/access";
 import { takedownNote, rewordNote, untieEdge, removeStamp } from "@/lib/manage";
 import { MAX_BODY } from "@/lib/limits";
 
@@ -24,6 +25,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
   const data = payload as Record<string, unknown>;
+
+  // You have to be on the board before your secret means anything on it. The
+  // secret already binds a row to the browser that created it, so this is the
+  // belt to that pair of braces: it keeps someone outside a private board from
+  // touching its rows at all, even by replaying a secret they somehow hold.
+  if ((await unlockedBoardId(data.slug)) === null) {
+    return NextResponse.json({ error: "No such board." }, { status: 403 });
+  }
+
   const id = Number(data.id);
   const secret = typeof data.secret === "string" ? data.secret : "";
   if (!Number.isInteger(id) || !secret) {

@@ -1,5 +1,5 @@
 import Board from "./board";
-import { getApprovedBoard } from "@/lib/queries";
+import { getPublicBoard } from "@/lib/queries";
 import { demoBoard } from "@/lib/demo";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export default async function Home({
   // /?demo=1 puts a fixed board up without a database, for looking at the
   // design and for re-shooting the link preview. Development only.
   const demo = process.env.NODE_ENV !== "production" && (await searchParams).demo === "1";
-  const { notes, edges } = demo ? demoBoard() : await getApprovedBoard();
+  const { notes, edges } = demo ? demoBoard() : await getPublicBoard();
 
   return (
     <main>
