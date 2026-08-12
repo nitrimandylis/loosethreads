@@ -10,7 +10,7 @@ A friend group first, then whoever they forward the link to. Most arrive from a 
 
 Two roles:
 
-- **Visitors** (everyone): read the board, pin a rumour, tie red string between two notes, stamp a note. Everything they submit is public immediately. What they created from this browser stays theirs to manage: take a note down, reword it, untie a string, take a stamp back. Anyone can also drag any note around their own view of the wall; nobody else sees that.
+- **Visitors** (everyone): read the board, pin a rumour, tie red string between two notes, stamp a note. Everything they submit is public immediately. On the public wall what they created from this browser stays theirs to manage (take a note down, reword it, untie a string, take a stamp back), and dragging a note rearranges only their own view. On a private board all of that belongs to everybody on it, moves included; see below.
 - **The moderator** (Nick, one person, `ADMIN_SECRET`): can edit or remove anything that is already on any board, public or private. Nothing waits for him.
 
 ## Product Purpose
