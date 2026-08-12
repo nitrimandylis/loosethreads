@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { ensureSchema } from "@/lib/db";
 import { allowManage } from "@/lib/ratelimit";
-import { unlockedBoardId } from "@/lib/access";
+import { boardAccess } from "@/lib/access";
+import { isOpen } from "@/lib/boards";
 import { takedownNote, rewordNote, untieEdge, removeStamp } from "@/lib/manage";
 import { MAX_BODY } from "@/lib/limits";
 
@@ -26,32 +27,43 @@ export async function POST(req: Request) {
   }
   const data = payload as Record<string, unknown>;
 
-  // You have to be on the board before your secret means anything on it. The
-  // secret already binds a row to the browser that created it, so this is the
-  // belt to that pair of braces: it keeps someone outside a private board from
-  // touching its rows at all, even by replaying a secret they somehow hold.
-  if ((await unlockedBoardId(data.slug)) === null) {
+  // You have to be on the board before anything you send means anything on it.
+  const access = typeof data.slug === "string" ? await boardAccess(data.slug) : null;
+  if (!access || !access.unlocked) {
     return NextResponse.json({ error: "No such board." }, { status: 403 });
   }
 
+  // The one line that decides who may edit what.
+  //
+  // On a PRIVATE board everyone inside can reword, take down and untie
+  // anything, because the people on one were told the word by somebody: it is
+  // a group, and a group can be asked to stop. The public wall is strangers,
+  // so it stays null and the per-row secret remains the only key there. Passing
+  // the public board's id here would hand every visitor a takedown button on
+  // everybody else's rumours.
+  const board = isOpen(access.board) ? null : access.board.id;
+
   const id = Number(data.id);
   const secret = typeof data.secret === "string" ? data.secret : "";
-  if (!Number.isInteger(id) || !secret) {
+  // A secret is still required on the public wall, where it is the only key.
+  // Inside a private board there is nothing to prove: you are already in.
+  if (!Number.isInteger(id) || (!secret && board === null)) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
   let changed = false;
   if (data.action === "takedown") {
-    changed = await takedownNote(id, secret);
+    changed = await takedownNote(id, secret, board);
   } else if (data.action === "reword") {
     const body = typeof data.body === "string" ? data.body.trim() : "";
     if (!body || body.length > MAX_BODY) {
       return NextResponse.json({ error: `Note must be 1-${MAX_BODY} characters.` }, { status: 400 });
     }
-    changed = await rewordNote(id, secret, body);
+    changed = await rewordNote(id, secret, body, board);
   } else if (data.action === "untie") {
-    changed = await untieEdge(id, secret);
+    changed = await untieEdge(id, secret, board);
   } else if (data.action === "unstamp") {
+    // Stamps are yours alone everywhere, so this one never takes the board.
     changed = await removeStamp(id, secret);
   } else {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });

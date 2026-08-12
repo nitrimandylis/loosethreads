@@ -21,7 +21,7 @@ import {
   forgetNote,
 } from "@/lib/mine";
 import { MAX_BODY } from "@/lib/limits";
-import { postApi } from "@/lib/post";
+import { postApi, onPrivateBoard } from "@/lib/post";
 import type { NoteRow } from "@/lib/queries";
 
 /** Stamps are ink on paper, and 👀 needs a class name a stylesheet can hold. */
@@ -62,7 +62,11 @@ export function Note({
   const [editing, setEditing] = useState(false);
   const [reworded, setReworded] = useState<string | null>(null);
   const body = reworded ?? note.body;
-  const secret = noteSecret(note.id);
+  // The secret this browser holds for this note, if it pinned it. On a private
+  // board it does not need one: everybody inside can reword and take down
+  // anything, so `mine` is what decides whether the controls are drawn.
+  const secret = noteSecret(note.id) ?? "";
+  const mineToManage = secret !== "" || onPrivateBoard();
   const [settling, setSettling] = useState(settle);
   useEffect(() => {
     if (!settling) return;
@@ -176,7 +180,7 @@ export function Note({
           onBlur={async (e) => {
             const next = e.target.value.trim();
             setEditing(false);
-            if (!next || next === body || !secret) return;
+            if (!next || next === body || !mineToManage) return;
             const res = await postApi("/api/manage", { action: "reword", id: note.id, secret, body: next }).catch(() => null);
             if (res?.ok) setReworded(next);
             else say("The reword did not take.");
@@ -227,9 +231,10 @@ export function Note({
           <button className="tray-tie" onClick={() => onTie(note.id)}>
             Tie string
           </button>
-          {/* Yours to manage, proven by the secret this browser was handed
-              when it pinned the note. Nobody else sees these. */}
-          {secret && (
+          {/* Yours to manage: proven by the secret this browser was handed
+              when it pinned the note, or by being inside a private board,
+              where everyone can move and edit everything. */}
+          {mineToManage && (
             <>
               <button
                 className="tray-own"

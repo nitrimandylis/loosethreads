@@ -35,7 +35,9 @@ Loose Threads is one corkboard where anyone, anonymously, pins a gossip note and
 
 Everything a stranger posts goes live the moment they post it. There is no queue and no approval step. The board had one once, and an empty board is what it got: you post a rumour, nothing appears, you close the tab. Moderation now happens *after* the fact, from `/admin`, where anything on the board can be edited in place or taken down.
 
-You can't tidy it for everyone else. The wall is canonical and you are a guest: pan it, step back from it, read it, add to it. What you posted from this browser stays yours to take down, reword, untie or unstamp, and you can drag any note somewhere else in your own view without anybody else's wall moving.
+On the public wall you can't tidy it for everyone else. It is canonical and you are a guest: pan it, step back from it, read it, add to it. What you posted from this browser stays yours to take down, reword, untie or unstamp, and you can drag any note somewhere else in your own view without anybody else's wall moving.
+
+A private board is the other way round. Everyone who was told the word can move, edit, take down and untie anything on it, and everybody on it sees the result, because those people are a group somebody handed a passphrase to rather than an internet full of strangers.
 
 ```console
 nick@loosethreads:~$ npm run dev
@@ -55,8 +57,8 @@ nick@loosethreads:~$ npm run dev
 | 06 | **takedown, not review** | `/admin` shows what is live and can edit it in place or remove it. Removal is soft and takes its strings with it |
 | 07 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`, stamped as ink on the paper rather than buttons on a card. One per note per browser |
 | 08 | **notes age** | paper yellows the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
-| 09 | **yours to manage** | every row you create hands your browser a secret. Take your own note down, reword it, untie your string, take a stamp back, all without an account. Clear your browser data and it's gone |
-| 10 | **rearrange your own view** | drag a note (hold to lift, on touch) and it moves for you only, in sessionStorage. The string follows it. Nobody else's wall changes and a closed tab straightens yours back out |
+| 09 | **yours to manage** | every row you create hands your browser a secret. Take your own note down, reword it, untie your string, take a stamp back, all without an account. Clear your browser data and it's gone. On a private board everyone inside can edit, take down and untie anything; stamps stay their owner's everywhere |
+| 10 | **rearrange the wall** | on the public wall a drag moves the note for you only, in sessionStorage: nobody else's wall changes and a closed tab straightens yours back out. On a private board it is a real move that everyone on it sees, because a board is a group who were handed a word, not a crowd of strangers |
 | 11 | **private boards** | `/` is the public wall; `/b/<slug>` is somebody's own, opened with a shared word. The slug gets you to the gate and the passphrase gets you past it, so a forwarded link on its own carries no access. `/admin` mints them, changes the word, signs everyone out, and deletes a board and its notes outright |
 | 12 | **no accounts** | no login, no profile, no email, on a private board either. A per-IP rate limit, counted in Postgres, is the whole gate on the public wall |
 
@@ -135,10 +137,11 @@ flowchart LR
 | paper | `src/lib/paper.ts` | which stock, tilt, pin and width a note gets, derived from its id |
 | aging | `src/lib/aging.ts` | note age → visual bucket |
 | submit api | `src/app/api/submit/route.ts` | the gate: rate-limits per action, then publishes immediately |
-| manage api | `src/app/api/manage/route.ts` | acting on your own rows: take down, reword, untie, unstamp. The secret is the whole proof |
+| manage api | `src/app/api/manage/route.ts` | take down, reword, untie, unstamp. The secret is the whole proof on the public wall; inside a private board, being on it is enough |
 | your rows | `src/lib/mine.ts`, `src/lib/manage.ts` | the secrets this browser holds (localStorage), and the SQL that checks one inside the `WHERE` |
-| your view | `src/lib/moved.ts` | where you dragged notes to, in sessionStorage. Never sent anywhere |
-| rate limits | `src/lib/ratelimit.ts` | six buckets priced by cost, counted in Postgres: notes 5, strings 15, stamps 60, manage 30 per 10 min, logins 5 and board unlocks 8 per 15 min, per IP |
+| where notes sit | `src/lib/moved.ts` | on the public wall, where you dragged them, in sessionStorage, never sent anywhere. On a private board, the moment between letting go and the server agreeing |
+| move api | `src/app/api/board/move/route.ts` | a drag that everyone on a private board sees. Refuses the public wall outright |
+| rate limits | `src/lib/ratelimit.ts` | seven buckets priced by cost, counted in Postgres: notes 5, strings 15, stamps 60, manage 30, moves 240 per 10 min, logins 5 and board unlocks 8 per 15 min, per IP |
 | admin | `src/app/admin/` | secret-gated live board for every board: edit in place, remove, switch boards, mint one, delete one, sign out |
 | private boards | `src/lib/boards.ts` | slugs, scrypt passphrases, the per-board token, and the SQL behind minting, re-keying and deleting |
 | the gate | `src/lib/access.ts`, `src/app/gate.tsx` | the one check every private read and write goes through, and the envelope you meet before you pass it |

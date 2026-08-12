@@ -12,14 +12,31 @@
 // The empty string is the public wall, matching PUBLIC_SLUG in boards.ts.
 // Not imported from there: boards.ts pulls in node:crypto and the database
 // driver, and none of that belongs in a browser bundle for one constant.
+//
+// Falls back to the public wall when there is no window, the same way the
+// secrets in mine.ts read as empty on the server. A note's tray is the only
+// thing that asks, it is never rendered until somebody picks a note up, and by
+// then this is running in a browser.
 export function currentSlug(): string {
+  if (typeof window === "undefined") return "";
   const m = /^\/b\/([a-z2-9]+)/.exec(window.location.pathname);
   return m ? m[1] : "";
 }
 
+/**
+ * Is this a private board?
+ *
+ * Every board reachable at /b/<slug> has a passphrase, so the slug is the
+ * whole test. It decides what the controls offer, not what is allowed: the
+ * server checks the board on every write regardless of what the page drew.
+ */
+export function onPrivateBoard(): boolean {
+  return currentSlug() !== "";
+}
+
 /** POST JSON to a board-scoped endpoint. The slug rides along on every call. */
 export function postApi(
-  path: "/api/submit" | "/api/manage",
+  path: "/api/submit" | "/api/manage" | "/api/board/move",
   body: Record<string, unknown>
 ): Promise<Response> {
   return fetch(path, {

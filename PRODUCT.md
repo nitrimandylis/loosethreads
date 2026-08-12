@@ -40,7 +40,15 @@ What replaces it:
 
 Everything a browser creates comes back with a secret (one random UUID per row) that only that browser is ever told. It is kept in localStorage and repeated to `/api/manage` to take a note down, reword it, untie a string, or take a stamp back. No accounts, no sessions, nothing that identifies a person, and nothing marks a note as yours to anyone else. Clear your browser data and your notes become as permanent as everyone else's; that is the deal.
 
-Rearranging is different: dragging a note (mouse: drag it; touch: hold to lift) moves it only in your own view, kept in sessionStorage so a closed tab straightens the wall back out. The shared wall never learns about it.
+Rearranging is different **on the public wall**: dragging a note (mouse: drag it; touch: hold to lift) moves it only in your own view, kept in sessionStorage so a closed tab straightens the wall back out. The shared wall never learns about it.
+
+## A private board is a group, not a crowd
+
+On a private board those rules invert, deliberately. Everybody who was told the word can drag any note and everybody on that board sees it, and everybody can reword, take down and untie anything, without holding the secret that created it.
+
+The reason is who is on the other side. The public wall is strangers, so nobody may tidy it for anyone else and the per-row secret is the only key. A private board is people somebody handed a passphrase to in person: a group, and a group can be asked to stop. Locking them out of each other's notes would only mean a board nobody can keep in order, which is the state a corkboard is least useful in.
+
+What does not invert: a stamp stays its owner's on every board. A stamp is a mark somebody made rather than content the group has to live with, and pulling one off is editing what a person thought instead of what the wall says.
 
 ## Private boards
 

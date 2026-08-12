@@ -32,8 +32,17 @@ import {
   FURNITURE,
 } from "@/lib/wall";
 import { rememberNote, rememberEdge, edgeSecret, forgetEdge } from "@/lib/mine";
-import { postApi } from "@/lib/post";
-import { subscribeMoves, getMoves, getServerMoves, writeMove, applyMoves } from "@/lib/moved";
+import { postApi, onPrivateBoard } from "@/lib/post";
+import {
+  subscribeMoves,
+  getMoves,
+  getServerMoves,
+  writeMove,
+  stageMove,
+  dropStaged,
+  settleMoves,
+  applyMoves,
+} from "@/lib/moved";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
 /** How often the wall re-reads itself while somebody is looking at it. */
@@ -159,6 +168,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
   const returnTo = useRef<Viewport | null>(null);
   // Flipped by any user gesture; the shot and the return check it.
   const userMoved = useRef(false);
+  // Said once: after the first drag on a private board, moving things is just
+  // what the board does and a toast per note would be noise.
+  const movedOnce = useRef(false);
 
   const say = useCallback((message: string) => {
     setToast(message);
@@ -183,6 +195,14 @@ export default function Board({ notes: served, edges: servedEdges }: {
     window.addEventListener("resize", set);
     return () => window.removeEventListener("resize", set);
   }, [bounds, measure]);
+
+  // A poll (or any re-render from the server) is how a private-board move
+  // comes back as fact. Once the wall agrees with what this browser is holding
+  // on to, it stops holding on, and somebody else moving that note afterwards
+  // is free to win.
+  useEffect(() => {
+    settleMoves(served);
+  }, [served]);
 
   // Everything publishes instantly, so somebody else's rumour can land while
   // you are reading. Only while the tab is actually being looked at.
@@ -331,12 +351,36 @@ export default function Board({ notes: served, edges: servedEdges }: {
     [say]
   );
 
-  /** A drag ended: keep the new spot, for this browser only. */
+  /**
+   * A drag ended.
+   *
+   * On a private board that is a real move and everybody on it will see it, so
+   * it goes to the server and is only held here until a poll brings it back.
+   * On the public wall it stays in this browser, which is what stops a stranger
+   * rearranging a wall other strangers are reading.
+   */
   const onMoved = useCallback(
-    (id: number, x: number, y: number) => {
-      const first = Object.keys(getMoves()).length === 0;
-      writeMove(id, x, y);
-      if (first) say("Moved for you. Everyone else sees it where it was.");
+    async (id: number, x: number, y: number) => {
+      if (!onPrivateBoard()) {
+        const first = Object.keys(getMoves()).length === 0;
+        writeMove(id, x, y);
+        if (first) say("Moved for you. Everyone else sees it where it was.");
+        return;
+      }
+
+      stageMove(id, x, y);
+      const res = await postApi("/api/board/move", { id, x, y }).catch(() => null);
+      if (!res?.ok) {
+        // Put it back where the wall says it is, rather than leaving it
+        // somewhere only this browser believes in.
+        dropStaged(id);
+        say("That would not move.");
+        return;
+      }
+      if (!movedOnce.current) {
+        movedOnce.current = true;
+        say("Moved for everyone on this board.");
+      }
     },
     [say]
   );
@@ -377,7 +421,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
         const zoom = instance.getViewport().zoom;
         let best: { id: number; d: number } | null = null;
         for (const e of edges) {
-          if (edgeSecret(e.id) === null) continue;
+          // On a private board every string is yours to cut; on the public
+          // wall only the ones this browser tied are pickable at all.
+          if (!onPrivateBoard() && edgeSecret(e.id) === null) continue;
           const a = notes.find((n) => n.id === e.source_id);
           const b = notes.find((n) => n.id === e.target_id);
           if (!a || !b) continue;
@@ -537,9 +583,9 @@ export default function Board({ notes: served, edges: servedEdges }: {
         style={{ left: mid.x, top: mid.y }}
         onClick={async (ev) => {
           ev.stopPropagation();
-          const secret = edgeSecret(e.id);
+          const secret = edgeSecret(e.id) ?? "";
           setPickedString(null);
-          if (!secret) return;
+          if (!secret && !onPrivateBoard()) return;
           const res = await postApi("/api/manage", { action: "untie", id: e.id, secret }).catch(() => null);
           if (res?.ok) {
             forgetEdge(e.id);

@@ -37,6 +37,10 @@ const BUCKETS = {
   // and getting it wrong, not attacking anything. Without this bucket the gate
   // is a guessing game against a word somebody chose, which is not a gate.
   unlock: { limit: 8, minutes: 15 },
+  // Generous, because this is one write per note you let go of and tidying a
+  // wall is a lot of small drags in a row. It exists to cap a script, not to
+  // stop anybody rearranging their own board.
+  move: { limit: 240, minutes: 10 },
 } as const;
 
 type Action = keyof typeof BUCKETS;
@@ -94,3 +98,4 @@ export const allowReaction = (req: Request) => check("reaction", req);
 export const allowLogin = (req: Request) => check("login", req);
 export const allowManage = (req: Request) => check("manage", req);
 export const allowUnlock = (req: Request) => check("unlock", req);
+export const allowMove = (req: Request) => check("move", req);
