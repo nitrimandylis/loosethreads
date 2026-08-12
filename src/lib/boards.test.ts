@@ -8,6 +8,7 @@ import { sql, ensureSchema } from "./db.ts";
 import {
   boardBySlug,
   createBoard,
+  deleteBoard,
   isOpen,
   newSlug,
   PUBLIC_SLUG,
@@ -95,6 +96,45 @@ test("the public wall cannot be given a passphrase or rotated shut", async () =>
   const pub = await boardBySlug(PUBLIC_SLUG);
   assert.ok(pub);
   assert.equal(isOpen(pub), true);
+});
+
+test("deleting a board takes its notes, strings and stamps with it", async () => {
+  const doomed = await createBoard("going away");
+  const keep = await createBoard("staying put");
+
+  const [a] = (await sql`
+    INSERT INTO nodes (body, x, y, status, board_id)
+    VALUES ('one', 0, 0, 'approved', ${doomed.id}) RETURNING id
+  `) as { id: number }[];
+  const [b] = (await sql`
+    INSERT INTO nodes (body, x, y, status, board_id)
+    VALUES ('two', 0, 0, 'approved', ${doomed.id}) RETURNING id
+  `) as { id: number }[];
+  await sql`INSERT INTO edges (source_id, target_id, status) VALUES (${a.id}, ${b.id}, 'approved')`;
+  await sql`INSERT INTO reactions (node_id, kind) VALUES (${a.id}, 'CONFIRMED')`;
+  const [safe] = (await sql`
+    INSERT INTO nodes (body, x, y, status, board_id)
+    VALUES ('untouched', 0, 0, 'approved', ${keep.id}) RETURNING id
+  `) as { id: number }[];
+
+  assert.equal(await deleteBoard(doomed.slug), true);
+  assert.equal(await boardBySlug(doomed.slug), null);
+
+  const notes = await sql`SELECT id FROM nodes WHERE id IN (${a.id}, ${b.id})`;
+  const edges = await sql`SELECT id FROM edges WHERE source_id = ${a.id}`;
+  const stamps = await sql`SELECT id FROM reactions WHERE node_id = ${a.id}`;
+  assert.equal(notes.length, 0, "its notes go");
+  assert.equal(edges.length, 0, "its strings cascade");
+  assert.equal(stamps.length, 0, "its stamps cascade");
+
+  const other = await sql`SELECT id FROM nodes WHERE id = ${safe.id}`;
+  assert.equal(other.length, 1, "another board's notes are untouched");
+  assert.equal(await deleteBoard(doomed.slug), false, "deleting again is a non-event");
+});
+
+test("the public wall cannot be deleted", async () => {
+  assert.equal(await deleteBoard(PUBLIC_SLUG), false);
+  assert.ok(await boardBySlug(PUBLIC_SLUG));
 });
 
 test("notes land on one board and are invisible from another", async () => {

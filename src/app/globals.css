@@ -1300,6 +1300,7 @@ main {
    on the way to a board link. */
 .board-acts {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-left: auto;
 }
@@ -1324,6 +1325,17 @@ main {
 .board-acts button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+/* The one button here that destroys something reads as it, and does not sit
+   at the same weight as re-keying. */
+.board-acts .danger {
+  color: #ff8079;
+  border-color: rgba(192, 35, 31, 0.45);
+}
+.board-acts .danger:hover:not(:disabled) {
+  color: #fff;
+  background: var(--red-dark);
+  border-color: var(--red-string);
 }
 .board-new {
   display: flex;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureSchema } from "@/lib/db";
 import { isAdmin } from "@/lib/admin";
-import { createBoard, rotateToken, setPassphrase, validSlug } from "@/lib/boards";
+import { createBoard, deleteBoard, rotateToken, setPassphrase, validSlug } from "@/lib/boards";
 
 /** Shortest word worth calling a passphrase. It is shared out loud, not typed by a machine. */
 const MIN_PASS = 4;
@@ -49,6 +49,15 @@ export async function POST(req: Request) {
   if (data.action === "rotate") {
     // Everyone holding a cookie for this board is out on their next request.
     const ok = await rotateToken(slug);
+    return ok
+      ? NextResponse.json({ ok: true })
+      : NextResponse.json({ error: "No such board." }, { status: 400 });
+  }
+
+  if (data.action === "delete") {
+    // The board and everything pinned to it. There is no undo and no record
+    // kept, the same deal the rest of the board runs on.
+    const ok = await deleteBoard(slug);
     return ok
       ? NextResponse.json({ ok: true })
       : NextResponse.json({ error: "No such board." }, { status: 400 });

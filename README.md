@@ -57,7 +57,7 @@ nick@loosethreads:~$ npm run dev
 | 08 | **notes age** | paper yellows the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
 | 09 | **yours to manage** | every row you create hands your browser a secret. Take your own note down, reword it, untie your string, take a stamp back, all without an account. Clear your browser data and it's gone |
 | 10 | **rearrange your own view** | drag a note (hold to lift, on touch) and it moves for you only, in sessionStorage. The string follows it. Nobody else's wall changes and a closed tab straightens yours back out |
-| 11 | **private boards** | `/` is the public wall; `/b/<slug>` is somebody's own, opened with a shared word. The slug gets you to the gate and the passphrase gets you past it, so a forwarded link on its own carries no access. Made from `/admin` |
+| 11 | **private boards** | `/` is the public wall; `/b/<slug>` is somebody's own, opened with a shared word. The slug gets you to the gate and the passphrase gets you past it, so a forwarded link on its own carries no access. `/admin` mints them, changes the word, signs everyone out, and deletes a board and its notes outright |
 | 12 | **no accounts** | no login, no profile, no email, on a private board either. A per-IP rate limit, counted in Postgres, is the whole gate on the public wall |
 
 ## 🚀 Run it
@@ -101,6 +101,11 @@ Everything it writes is ordinary board data, so you can drag it, tie it, stamp
 it and take it down like anything else. Stop the dev server first: two Postgres
 VMs over one folder is one too many.
 
+Seeding empties every board, not only the public one, because the notes have to
+come back as ids 1..16 for the paper to be the same paper. So it refuses and
+writes nothing if any private board has notes on it, and lists what would have
+gone. `npm run seed -- --force` says you meant it.
+
 ## 🔩 Under the hood
 
 ```mermaid
@@ -134,8 +139,8 @@ flowchart LR
 | your rows | `src/lib/mine.ts`, `src/lib/manage.ts` | the secrets this browser holds (localStorage), and the SQL that checks one inside the `WHERE` |
 | your view | `src/lib/moved.ts` | where you dragged notes to, in sessionStorage. Never sent anywhere |
 | rate limits | `src/lib/ratelimit.ts` | six buckets priced by cost, counted in Postgres: notes 5, strings 15, stamps 60, manage 30 per 10 min, logins 5 and board unlocks 8 per 15 min, per IP |
-| admin | `src/app/admin/` | secret-gated live board for every board: edit in place, remove, switch boards, mint one, sign out |
-| private boards | `src/lib/boards.ts` | slugs, scrypt passphrases, the per-board token, and the SQL behind minting and re-keying |
+| admin | `src/app/admin/` | secret-gated live board for every board: edit in place, remove, switch boards, mint one, delete one, sign out |
+| private boards | `src/lib/boards.ts` | slugs, scrypt passphrases, the per-board token, and the SQL behind minting, re-keying and deleting |
 | the gate | `src/lib/access.ts`, `src/app/gate.tsx` | the one check every private read and write goes through, and the envelope you meet before you pass it |
 | a private wall | `src/app/b/[slug]/page.tsx` | renders the gate or the board, never both, so a locked board has no rumours in its HTML |
 | unlock api | `src/app/api/board/unlock/route.ts` | trades the passphrase for the cookie, rate limited |

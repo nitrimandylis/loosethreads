@@ -179,6 +179,18 @@ export function Boards({
     if (await send({ action: "rotate", slug })) router.refresh();
   }
 
+  async function destroy(slug: string, notes: number) {
+    // The count is in the question because "delete this board" and "delete
+    // these 40 rumours" are not the same decision, and only one of them is
+    // what actually happens.
+    const what = notes === 1 ? "1 note" : `${notes} notes`;
+    if (!confirm(`Delete /b/${slug} and its ${what}?\n\nThere is no undo.`)) return;
+    if (!(await send({ action: "delete", slug }))) return;
+    // Nothing to come back to if you were looking at it.
+    if (slug === current) router.push("/admin");
+    else router.refresh();
+  }
+
   return (
     <section className="boards">
       <h2>Boards</h2>
@@ -200,6 +212,9 @@ export function Boards({
                   </button>
                   <button disabled={busy} onClick={() => rotate(b.slug)}>
                     Sign everyone out
+                  </button>
+                  <button className="danger" disabled={busy} onClick={() => destroy(b.slug, b.notes)}>
+                    Delete
                   </button>
                 </span>
               )}

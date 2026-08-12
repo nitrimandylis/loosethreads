@@ -101,8 +101,30 @@ const STAMPS: Record<number, Record<string, number>> = {
   16: { CONFIRMED: 14 },
 };
 
-async function seed() {
+async function seed(): Promise<boolean> {
   await ensureSchema();
+
+  // The TRUNCATE below is not scoped to the public wall, and cannot be: the
+  // ids have to come back as 1..16, which is only true if nothing else is in
+  // the table. So a seed takes every private board's notes with it, which is
+  // worth refusing rather than mentioning. --force says you meant it.
+  const occupied = (await sql`
+    SELECT b.slug, count(n.id)::int AS notes
+    FROM boards b JOIN nodes n ON n.board_id = b.id
+    WHERE b.slug <> '' AND n.status = 'approved'
+    GROUP BY b.slug ORDER BY b.slug
+  `) as { slug: string; notes: number }[];
+
+  if (occupied.length && !process.argv.includes("--force")) {
+    console.error("[!] seeding empties every board, not just the public one.");
+    for (const b of occupied) console.error(`    /b/${b.slug} would lose ${b.notes} notes`);
+    console.error("[!] nothing was written. re-run with --force if that is what you want.");
+    // exitCode, never process.exit: exiting here would skip the close at the
+    // bottom of this file and leave pglite's lock file behind, so the next run
+    // against this folder hangs waiting for a process that is already gone.
+    process.exitCode = 1;
+    return false;
+  }
 
   // RESTART IDENTITY so the notes come back as ids 1..16 on every run: paper
   // stock, tilt and pin position are all derived from the id, so without it
@@ -122,14 +144,20 @@ async function seed() {
   const spots: Point[] = [];
   const now = Date.now();
 
+  // Named explicitly rather than left to the backfill in ensureSchema. That
+  // backfill exists to sweep up rows written before boards existed, and a
+  // seeded note that only reaches the public wall because a migration happened
+  // to run afterwards is a note on no board until it does.
+  const [publicBoard] = (await sql`SELECT id FROM boards WHERE slug = ''`) as { id: number }[];
+
   for (const note of NOTES) {
     const spot = place(spots, Object.values(FURNITURE), rand);
     spots.push(spot);
     await sql`
-      INSERT INTO nodes (body, x, y, status, created_at)
+      INSERT INTO nodes (body, x, y, status, created_at, board_id)
       VALUES (
         ${note.body}, ${spot.x}, ${spot.y}, 'approved',
-        ${new Date(now - note.age).toISOString()}
+        ${new Date(now - note.age).toISOString()}, ${publicBoard.id}
       )
     `;
   }
@@ -149,6 +177,8 @@ async function seed() {
       }
     }
   }
+
+  return true;
 }
 
 /**
@@ -200,8 +230,9 @@ async function verify() {
 const bucket = (n: { age: number }) =>
   n.age < DAY ? "fresh" : n.age < 7 * DAY ? "days" : n.age < 30 * DAY ? "weeks" : "old";
 
-await seed();
-await verify();
+// verify() reads back what seed() wrote; there is nothing to read if it
+// refused, and its checks would all fail on the board it declined to touch.
+if (await seed()) await verify();
 
 // pglite holds the database in memory and flushes to the folder; without an
 // explicit close the process can exit before the last write lands on disk.

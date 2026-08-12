@@ -128,6 +128,30 @@ export async function setPassphrase(slug: string, passphrase: string): Promise<b
   return rows.length === 1;
 }
 
+/**
+ * Take a board off the wall entirely, notes and all.
+ *
+ * `edges` and `reactions` hang off `nodes` with ON DELETE CASCADE, so the notes
+ * take their strings and stamps with them. `nodes.board_id` deliberately has no
+ * cascade, so the notes have to go first or the board refuses to be deleted;
+ * that is the safer default for a column added by a migration.
+ *
+ * ponytail: two statements, not one transaction, because the sql helper is a
+ * tagged template per query. If the second fails the notes are gone and an
+ * empty board row remains, which deleting again clears. Reach for a real
+ * transaction if boards ever hold something that cannot be re-made.
+ */
+export async function deleteBoard(slug: string): Promise<boolean> {
+  if (slug === PUBLIC_SLUG) return false;
+  const board = await boardBySlug(slug);
+  if (!board) return false;
+  await sql`DELETE FROM nodes WHERE board_id = ${board.id}`;
+  const rows = await sql`
+    DELETE FROM boards WHERE id = ${board.id} AND slug <> ${PUBLIC_SLUG} RETURNING id
+  `;
+  return rows.length === 1;
+}
+
 export async function listBoards(): Promise<{ slug: string; created_at: string; notes: number }[]> {
   return (await sql`
     SELECT b.slug, b.created_at, count(n.id) FILTER (WHERE n.status = 'approved')::int AS notes
