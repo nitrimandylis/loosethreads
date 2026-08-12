@@ -36,7 +36,28 @@ function read(): Moves {
 // note at its new home this is dropped, and the wall is the only record.
 let staged: Moves = {};
 
+/**
+ * What getMoves hands out, built once per change rather than per call.
+ *
+ * This has to be one stable object between notifications. useSyncExternalStore
+ * calls the snapshot on every render and compares it by identity, so merging
+ * the two maps inside getMoves returned a brand new object each time, which
+ * React reads as a store that never stops changing: it gives up with "the
+ * result of getSnapshot should be cached" and the board hits its error
+ * boundary. Only a staged move made the merge run, so the wall came down on
+ * the first drag of a private board.
+ */
+let snapshot: Moves | null = null;
+
+function rebuild() {
+  if (cache === null) cache = read();
+  // Staged last: a note you just let go of sits where you dropped it, not
+  // where this browser happens to have dragged it in some earlier session.
+  snapshot = Object.keys(staged).length === 0 ? cache : { ...cache, ...staged };
+}
+
 function notify() {
+  rebuild();
   for (const l of listeners) l();
 }
 
@@ -46,10 +67,8 @@ export function subscribeMoves(onChange: () => void): () => void {
 }
 
 export function getMoves(): Moves {
-  if (cache === null) cache = read();
-  // Staged last: a note you just let go of sits where you dropped it, not
-  // where this browser happens to have dragged it in some earlier session.
-  return Object.keys(staged).length === 0 ? cache : { ...cache, ...staged };
+  if (snapshot === null) rebuild();
+  return snapshot as Moves;
 }
 
 /**

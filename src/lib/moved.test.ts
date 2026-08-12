@@ -5,6 +5,29 @@ import assert from "node:assert/strict";
 // moves, so everything below exercises the staged (private-board) half.
 const { getMoves, stageMove, dropStaged, settleMoves, applyMoves } = await import("./moved.ts");
 
+/**
+ * The one that took the board down in production.
+ *
+ * useSyncExternalStore calls the snapshot on every render and compares it by
+ * identity. Building the merged map inside getMoves handed back a new object
+ * each call, React read that as a store that never settles, and the first drag
+ * on a private board threw straight into the error boundary.
+ */
+test("the snapshot keeps its identity between changes", () => {
+  const before = getMoves();
+  assert.equal(getMoves(), before, "no change, same object");
+
+  stageMove(10, 1, 2);
+  const staged = getMoves();
+  assert.notEqual(staged, before, "a change is a new object");
+  assert.equal(getMoves(), staged, "…and then it holds still");
+  assert.equal(getMoves(), staged, "however many times React asks");
+
+  settleMoves([{ id: 10, x: 1, y: 2 }]);
+  const settled = getMoves();
+  assert.equal(getMoves(), settled, "still stable once the move settles");
+});
+
 test("a staged move holds the note until the wall agrees", () => {
   stageMove(1, 100, 200);
   assert.deepEqual(getMoves()[1], { x: 100, y: 200 });
