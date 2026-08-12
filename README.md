@@ -53,7 +53,7 @@ nick@loosethreads:~$ npm run dev
 | 02 | **five paper stocks** | legal pad, manila card, memo, message slip, torn receipt: different widths, different edges, different printing, picked from the note id so the wall looks hand-assembled |
 | 03 | **red string** | tap a note, **Tie string**, tap the second one. It sags with the span, casts a shadow on the cork, crosses over the paper and stops short of the pins |
 | 04 | **one wall that grows** | no sections and nothing to pick before posting. The wall is an ellipse whose radius grows as √n, so it is equally dense at five notes and at three hundred; a new note takes whichever of 20 candidate spots sits furthest from its neighbours and clear of the furniture |
-| 05 | **instant publish** | no queue, no approval. Your note travels from the sheet you wrote it on to its place on the wall, and the board polls every 15s so your friends' notes land while you watch |
+| 05 | **instant publish** | no queue, no approval. Your note travels from the sheet you wrote it on to its place on the wall. The public wall re-reads itself every 15s; a private board every 3s, so a friend dragging a note or rewording one shows up while you are looking at it |
 | 06 | **takedown, not review** | `/admin` shows what is live and can edit it in place or remove it. Removal is soft and takes its strings with it |
 | 07 | **reaction stamps** | `CONFIRMED` · `CAP` · `👀` · `LMAO`, stamped as ink on the paper rather than buttons on a card. One per note per browser |
 | 08 | **notes age** | paper yellows the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |

@@ -48,6 +48,8 @@ On a private board those rules invert, deliberately. Everybody who was told the 
 
 The reason is who is on the other side. The public wall is strangers, so nobody may tidy it for anyone else and the per-row secret is the only key. A private board is people somebody handed a passphrase to in person: a group, and a group can be asked to stop. Locking them out of each other's notes would only mean a board nobody can keep in order, which is the state a corkboard is least useful in.
 
+Because everything on a private board is shared, it also re-reads itself every three seconds rather than every fifteen, so somebody moving a note or rewording one shows up while you are watching instead of after a reload. That stays polling rather than a live socket: a socket needs a connection held open and something to publish through, which on serverless means a second service, and this app's whole configuration story is that there is exactly one.
+
 What does not invert: a stamp stays its owner's on every board. A stamp is a mark somebody made rather than content the group has to live with, and pulling one off is editing what a person thought instead of what the wall says.
 
 ## Private boards

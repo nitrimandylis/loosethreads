@@ -45,8 +45,24 @@ import {
 } from "@/lib/moved";
 import type { NoteRow, EdgeRow } from "@/lib/queries";
 
-/** How often the wall re-reads itself while somebody is looking at it. */
-const POLL_MS = 15_000;
+/**
+ * How often the wall re-reads itself while somebody is looking at it.
+ *
+ * A private board is a handful of people doing things to the same wall at the
+ * same time, and everything they do is shared: moving a note, rewording it,
+ * untying a string. Fifteen seconds between somebody dragging a note and
+ * anybody else seeing it makes the board feel broken rather than shared, so
+ * one of these is a fifth of the other.
+ *
+ * ponytail: polling, not a socket. Live updates over SSE or a WebSocket need a
+ * connection held open and something to publish through, which on serverless
+ * means a second service; this project's whole configuration story is that
+ * there is exactly one (see the README badge). Two seconds of latency for a
+ * group of friends is not worth that. Reach for a socket if a board ever has
+ * enough people on it that this shows up on the bill.
+ */
+const POLL_PUBLIC_MS = 15_000;
+const POLL_PRIVATE_MS = 3_000;
 
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -171,6 +187,10 @@ export default function Board({ notes: served, edges: servedEdges }: {
   // Said once: after the first drag on a private board, moving things is just
   // what the board does and a toast per note would be noise.
   const movedOnce = useRef(false);
+  // Whether a note is under the pointer right now. A ref, not state, because
+  // the poll reads it from inside an interval closure that must not be torn
+  // down and rebuilt every time somebody picks a note up.
+  const dragging = useRef(false);
 
   const say = useCallback((message: string) => {
     setToast(message);
@@ -205,11 +225,16 @@ export default function Board({ notes: served, edges: servedEdges }: {
   }, [served]);
 
   // Everything publishes instantly, so somebody else's rumour can land while
-  // you are reading. Only while the tab is actually being looked at.
+  // you are reading. Only while the tab is actually being looked at, and never
+  // out from under a note somebody has hold of: a refresh mid-drag rebuilds
+  // every node and the note being dragged jumps.
   useEffect(() => {
+    const every = onPrivateBoard() ? POLL_PRIVATE_MS : POLL_PUBLIC_MS;
     const id = setInterval(() => {
-      if (document.visibilityState === "visible") router.refresh();
-    }, POLL_MS);
+      if (document.visibilityState !== "visible") return;
+      if (dragging.current) return;
+      router.refresh();
+    }, every);
     return () => clearInterval(id);
   }, [router]);
 
@@ -464,8 +489,13 @@ export default function Board({ notes: served, edges: servedEdges }: {
     }
   }, []);
 
+  const onNodeDragStart = useCallback(() => {
+    dragging.current = true;
+  }, []);
+
   const onNodeDragStop = useCallback(
     (_evt: unknown, node: Node) => {
+      dragging.current = false;
       if (node.type !== "note") return;
       onMoved(Number(node.id), node.position.x, node.position.y);
       setDragPos((d) => {
@@ -611,6 +641,7 @@ export default function Board({ notes: served, edges: servedEdges }: {
           edgeTypes={edgeTypes}
           onInit={onInit}
           onNodesChange={onNodesChange}
+          onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
           onMove={onMove}
           onMoveStart={onMoveStart}
