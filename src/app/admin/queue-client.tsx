@@ -190,7 +190,9 @@ export function Boards({
           return (
             <div className={`board-row${b.slug === current ? " on" : ""}`} key={b.slug || "public"}>
               <a href={b.slug === "" ? "/admin" : `/admin?board=${b.slug}`}>{label}</a>
-              <span className="board-count">{b.notes} notes</span>
+              <span className="board-count">
+                {b.notes} note{b.notes === 1 ? "" : "s"}
+              </span>
               {b.slug !== "" && (
                 <span className="board-acts">
                   <button disabled={busy} onClick={() => rekey(b.slug)}>
