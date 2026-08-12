@@ -57,7 +57,8 @@ nick@loosethreads:~$ npm run dev
 | 08 | **notes age** | paper yellows the longer it's been up. The ink ramps *darker* as it goes, so the oldest note on the board still clears 4.5:1 |
 | 09 | **yours to manage** | every row you create hands your browser a secret. Take your own note down, reword it, untie your string, take a stamp back, all without an account. Clear your browser data and it's gone |
 | 10 | **rearrange your own view** | drag a note (hold to lift, on touch) and it moves for you only, in sessionStorage. The string follows it. Nobody else's wall changes and a closed tab straightens yours back out |
-| 11 | **no accounts** | no login, no profile, no email. A per-IP rate limit, counted in Postgres, is the whole gate |
+| 11 | **private boards** | `/` is the public wall; `/b/<slug>` is somebody's own, opened with a shared word. The slug gets you to the gate and the passphrase gets you past it, so a forwarded link on its own carries no access. Made from `/admin` |
+| 12 | **no accounts** | no login, no profile, no email, on a private board either. A per-IP rate limit, counted in Postgres, is the whole gate on the public wall |
 
 ## 🚀 Run it
 
@@ -75,7 +76,10 @@ Postgres the notes live in, so there is no second service to sign up for, no
 extra environment variables, and no way to deploy with the limit switched off:
 if the database is reachable it is enforced, and if it is not, nothing works
 anyway. There is no bot check. Nothing is reviewed before it publishes either,
-so that limit and the takedown console are the entire defence.
+so that limit and the takedown console are the entire defence on the public
+wall. A private board adds one thing on top: a passphrase, hashed with scrypt
+out of `node:crypto`, and a per-board token in a cookie. It needs no
+configuration either, because it lives in the same database.
 
 ```bash
 git clone https://github.com/nitrimandylis/loosethreads.git
@@ -86,7 +90,7 @@ npm run seed                 # optional: the board in the screenshot above
 npm run dev
 ```
 
-The database schema creates itself on first query, no migration step and no ceremony. Visit `/` for the board and `/admin` to judge humanity after the fact. `/?demo=1` puts a fixed board up with no database at all, for design work.
+The database schema creates itself on first query, no migration step and no ceremony. Visit `/` for the board and `/admin` to judge humanity after the fact. `/admin` also mints private boards and switches between all of them, so `/b/<slug>` is reachable once you have made one and know its word. `/?demo=1` puts a fixed board up with no database at all, for design work.
 
 `npm run seed` wipes `.pgdata` and rebuilds the sixteen-note board at the top of
 this README: one night reconstructed by people who were not all in the room,
@@ -101,13 +105,16 @@ VMs over one folder is one too many.
 
 ```mermaid
 flowchart LR
-    A[anonymous visitor] -->|note or red string| B[per-IP rate limit]
+    A[anonymous visitor] -->|note or red string| G{board open?}
+    G -->|private, no cookie| P["/b/slug · passphrase"]
+    P -->|the word| G
+    G -->|yes| B[per-IP rate limit]
     B -->|bucket empty| X[429 · slow down]
-    B --> C[(status=approved)]
-    C --> H[public wall]
+    B --> C[(status=approved, board_id)]
+    C --> H[that board's wall]
     H -.->|the browser that made it, with its secret| M["/api/manage"]
     M --> C
-    H -.->|you, later| F["/admin"]
+    H -.->|you, later| F["/admin · any board"]
     F -->|edit in place| C
     F -->|remove| R[(status=removed)]
 ```
@@ -126,9 +133,15 @@ flowchart LR
 | manage api | `src/app/api/manage/route.ts` | acting on your own rows: take down, reword, untie, unstamp. The secret is the whole proof |
 | your rows | `src/lib/mine.ts`, `src/lib/manage.ts` | the secrets this browser holds (localStorage), and the SQL that checks one inside the `WHERE` |
 | your view | `src/lib/moved.ts` | where you dragged notes to, in sessionStorage. Never sent anywhere |
-| rate limits | `src/lib/ratelimit.ts` | five buckets priced by cost, counted in Postgres: notes 5, strings 15, stamps 60, manage 30 per 10 min, logins 5 per 15 min, per IP |
-| admin | `src/app/admin/` | secret-gated live board: edit in place, remove, sign out |
-| db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`nodes`, `edges`, `reactions`) |
+| rate limits | `src/lib/ratelimit.ts` | six buckets priced by cost, counted in Postgres: notes 5, strings 15, stamps 60, manage 30 per 10 min, logins 5 and board unlocks 8 per 15 min, per IP |
+| admin | `src/app/admin/` | secret-gated live board for every board: edit in place, remove, switch boards, mint one, sign out |
+| private boards | `src/lib/boards.ts` | slugs, scrypt passphrases, the per-board token, and the SQL behind minting and re-keying |
+| the gate | `src/lib/access.ts`, `src/app/gate.tsx` | the one check every private read and write goes through, and the envelope you meet before you pass it |
+| a private wall | `src/app/b/[slug]/page.tsx` | renders the gate or the board, never both, so a locked board has no rumours in its HTML |
+| unlock api | `src/app/api/board/unlock/route.ts` | trades the passphrase for the cookie, rate limited |
+| boards api | `src/app/api/admin/boards/route.ts` | admin only: make a board, replace its word, sign everyone out |
+| posting | `src/lib/post.ts` | reads the board slug off the URL so every write says which wall it is for |
+| db | `src/lib/db.ts` | lazy Neon client + self-creating schema (`boards`, `nodes`, `edges`, `reactions`, `hits`) |
 | queries | `src/lib/queries.ts` | public board read + the moderator's live-board read |
 | placement | `src/lib/placement.ts` | where a new note lands: a wall that grows as √n, keeping clear of what is already up |
 | demo board | `src/lib/demo.ts` | `/?demo=1` in development: a fixed board with no database, for design work and for re-shooting the link preview |
